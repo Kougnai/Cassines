@@ -139,7 +139,8 @@ for df in onglets_list:
     
     cols_presentes = [c for c in col_num if c in df.columns]
     for col in cols_presentes:
-        df[col] = df[col].astype(str).str.replace(r'[\s\u202f]', '', regex=True).str.replace(',', '.')
+        # Nettoyage manuel des espaces avant le replace
+        df[col] = df[col].astype(str).replace(r'\s+', '', regex=True).str.replace(',', '.')
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
 ##### ---- AJOUT DES DONNÉES MÉTÉO ----
