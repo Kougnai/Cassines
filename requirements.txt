@@ -1,0 +1,12 @@
+# Bibliothèques de base
+streamlit
+pandas
+requests
+
+# Connexion Google Sheets (Version moderne)
+gspread
+google-auth
+
+# Graphiques et Analyse
+plotly
+prophet
