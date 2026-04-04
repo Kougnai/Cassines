@@ -436,7 +436,7 @@ with tab2: ## VUE PAR SITE
     mean_temp = group_temp.groupby(['Site', 'tranche_temp'])['Ca_ht'].mean().reset_index().round()
     mean_temp.columns = ['Site', 'Catégorie temp', 'Chiffre d\'affaire moyen']
     st.subheader('**Chiffre d\'affaire moyen - Température**', text_alignment='center')
-    st.write(mean_temp)
+    st.dataframe(mean_temp, hide_index=True)
 
     "---"  ### ------ Corrélation PLUIE vs CA ----- ###
 
@@ -497,7 +497,7 @@ with tab2: ## VUE PAR SITE
     mean_pluie = group_pluie.groupby(['Site','tranche_pluie'])['Ca_ht'].mean().reset_index().round()
     mean_pluie.columns = ['Site', 'Catégorie pluie', 'Chiffre d\'affaire moyen']
     st.subheader('**Chiffre d\'affaire moyen - Pluie**', text_alignment='center')
-    st.write(mean_pluie)
+    st.dataframe(mean_pluie, hide_index=True)
 with tab3: ## VUE COMPTE FOURNISSEUR 
     # --- Consolidation ---
     df_bl['Mois'] = df_bl['Date'].dt.strftime('%Y-%m')
