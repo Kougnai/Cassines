@@ -594,7 +594,7 @@ with tab4: ## VUE SUIVIT DU CASH
 
     ### ----- INDICATEUR DE CASH CHIFFRE D'AFFAIRE ---- 
 
-    st.header('**Suivit espèces**', divider='blue')
+    st.header('**Suivi espèces**', divider='blue')
 
     cols = st.columns(4)
     with cols[0]:
@@ -607,7 +607,7 @@ with tab4: ## VUE SUIVIT DU CASH
         st.write('**Historique dépôt**')
         st.dataframe(df_cash_visuel, hide_index=True)
     
-    st.header('**Suivit des tips**', divider='blue')
+    st.header('**Suivi des tips**', divider='blue')
     cols = st.columns(2)
     with cols[0]:
         st.subheader('**Synthèse des Tips**')
@@ -771,7 +771,7 @@ with tab6: ## VUE AUDIT DES DONNÉES
     st.dataframe(data_ajouter, hide_index=True)    
 with tab7: ## VUE STOCK
 
-    st.header('**Suivit du stock**', divider = 'blue', text_alignment='center')
+    st.header('**Suivi du stock**', divider = 'blue', text_alignment='center')
 
     ## --- IMPORTATION DES DONNÉES ET MISE EN FORME ---
     df_stock['Date_heure'] = pd.to_datetime(df_stock['Date_heure'], dayfirst=True)
