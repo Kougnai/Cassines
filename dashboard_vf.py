@@ -584,7 +584,7 @@ with tab4: ## VUE SUIVIT DU CASH
     df_cash_visuel = df_cash_visuel[['Date dépôt', 'Montant','Numero_ticket']]
 
     ## --- TIPS ----
-
+    df_tips['Date'] = df_tips['Date'].dt.date
     tips_recu = df_ventes.query('année == @année_n').groupby('Site')['Tips'].sum().reset_index().copy()
     tips_donner = df_tips.groupby('Site')['Montant'].sum().reset_index().copy()
     tips_consolider = pd.merge(tips_recu, tips_donner, how='left', on='Site')
