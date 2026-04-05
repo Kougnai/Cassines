@@ -868,3 +868,7 @@ with tab8: ## PRÉVISION PROPHET 7 JOURS
                 fig = plot_plotly(model, forecast)
                 fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours (incluant météo) : {sel_site}")
                 st.plotly_chart(fig, use_container_width=True)
+with tab9:
+    with st.expander('**Historique Master Data**'):
+        df_ventes['Date'] = df_ventes['Date'].dt.date
+        st.dataframe(df_ventes, hide_index=True, use_container_width=True)
