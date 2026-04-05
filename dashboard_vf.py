@@ -330,7 +330,7 @@ with tab2: ## VUE PAR SITE
         site = st.pills('', options=pv, default='Guinguette', width=500)
 
     ##### ------ Préparation des données avec filtre 
-    df_filtrer = df_ventes.query("année== [2025,2024] and Site == @site").copy() # < --- CHANGER LA DATE POUR 2026, 2025
+    df_filtrer = df_ventes.query("année== [@année_n, @année_n -1] and Site == @site").copy() # < --- CHANGER LA DATE POUR 2026, 2025
     df_2025 = df_ventes.query('année ==@année_n and Site == @site').copy()
     var_pv = df_filtrer.groupby(["année","mois"])['Ca_ht'].sum().reset_index()
     var_pv['année'] = var_pv['année'].astype(str)
@@ -602,7 +602,7 @@ with tab4: ## VUE SUIVIT DU CASH
     with cols[1]:
         st.metric('**Espèces déposer**', value=f'{depot:,.0f} €'.replace(',', ' '))
     with cols[2]:
-        st.metric('**Reste à déposer**', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
+        st.metric('**Solde du coffre**', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
     with cols[3]:
         st.write('**Historique dépôt**')
         st.dataframe(df_cash_visuel, hide_index=True)
@@ -614,7 +614,7 @@ with tab4: ## VUE SUIVIT DU CASH
         st.dataframe(tips_consolider, hide_index=True)
     with cols[1]:
         st.subheader('**Historique des Tips**')
-        st.dataframe(df_tips, use_container_width=True)
+        st.dataframe(df_tips, hide_index=True, use_container_width=True)
 
     ## ---- CHECK DES ENVELOPPES ---
     st.subheader('**Audit des envellopes**', divider='blue')
