@@ -866,7 +866,7 @@ with tab8: ## PRÉVISION PROPHET 7 JOURS
                 # Graphique
                 from prophet.plot import plot_plotly
                 fig = plot_plotly(model, forecast)
-                fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours (incluant météo) : {sel_site}")
+                fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours : {sel_site}")
                 st.plotly_chart(fig, use_container_width=True)
 with tab9:
     with st.expander('**Historique Master Data**'):
