@@ -56,7 +56,7 @@ st.title('Les Cassines', text_alignment='center')
 st.header('Tableau de bord', text_alignment='center')
 
 @st.cache_data
-def get_data():
+def get_data(ttl=43200):
     # 1. Définition des accès
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     
