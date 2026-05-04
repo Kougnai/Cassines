@@ -622,12 +622,27 @@ with tab4: ## VUE SUIVIT DU CASH
     st.subheader('**Audit des envellopes**', divider='blue')
 
     ## --- PRÉPARATION DES VARIABLES ---
-    audit_cash_caisse = df_caisse[['Date', 'Site', 'Espece', 'Tips']].copy()
-    audit_cash_caisse['Date'] = audit_cash_caisse['Date'].dt.date
-    df_enveloppe['Date'] = pd.to_datetime(df_enveloppe['Date']).dt.date
-    audit_cash = pd.concat([audit_cash_caisse, df_enveloppe])
-    audit_cash = audit_cash.groupby(['Date', 'Site']).agg({'Espece': 'sum', 'Tips':'sum', 'Montant':'sum'}).round(2).reset_index()
-    audit_cash['Ecarts'] = audit_cash['Espece'] + audit_cash['Tips'] - audit_cash['Montant']
+    # 1. Préparation et nettoyage des dates
+    audit_cash_caisse = df_caisse[['Date', 'Site', 'Espece']].copy()
+    audit_cash_caisse['Date'] = pd.to_datetime(audit_cash_caisse['Date']).dt.date
+
+    df_enveloppe_clean = df_enveloppe.copy()
+    df_enveloppe_clean['Date'] = pd.to_datetime(df_enveloppe_clean['Date']).dt.date
+
+    # 2. AGRÉGATION PRÉALABLE (La clé du problème)
+    # On somme les espèces par jour/site pour être sûr de n'avoir qu'une ligne par couple
+    audit_cash_caisse_agg = audit_cash_caisse.groupby(['Date', 'Site'], as_index=False)['Espece'].sum()
+
+    # On fait de même pour les enveloppes
+    df_enveloppe_agg = df_enveloppe_clean.groupby(['Date', 'Site'], as_index=False)['Montant'].sum()
+
+    # 3. FUSION (Merge) 
+    # Maintenant, le merge est du 1-pour-1, donc pas de doublons
+    audit_cash = pd.merge(audit_cash_caisse_agg, df_enveloppe_agg, on=['Date', 'Site'], how='left')
+
+    # 4. Calculs finaux
+    audit_cash['Montant'] = audit_cash['Montant'].fillna(0) # Gérer les cas sans enveloppe
+    audit_cash['Ecarts'] = (audit_cash['Espece'] - audit_cash['Montant']).round(2)
     audit_cash = audit_cash.sort_values(by='Date', ascending=True)
 
     # On prépare les données (plus récent en haut pour l'audit)
