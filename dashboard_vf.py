@@ -56,7 +56,7 @@ st.title('Les Cassines', text_alignment='center')
 st.header('Tableau de bord', text_alignment='center')
 
 @st.cache_data
-def get_data(ttl=43200):
+def get_data():
     # 1. Définition des accès
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     
@@ -76,7 +76,8 @@ def get_data(ttl=43200):
     
     # 6. Ouverture du Spreadsheet
     spreadsheet = client.open("Cassines_bdd")
-    onglets = ['Ventes', 'Caisse', 'Events', 'Rh', 'Cash', 'Tips','Bon_livraison', 'Facture', 'Stock', 'Enveloppe']
+    
+    onglets = ['Ventes', 'Caisse', 'Events', 'Rh', 'Cash', 'Tips','Bon_livraison', 'Facture', 'Stock', 'Enveloppe'] # Selectionner les onglets
     
     # 7. Extraction des données
     data = {nom: pd.DataFrame(spreadsheet.worksheet(nom).get_all_records(value_render_option='FORMATTED_VALUE')) for nom in onglets}
@@ -170,7 +171,8 @@ with tab1: ## VUE GLOBALE
     df_année_n = df_ventes.query('année == @année_n').copy()
     ca_année_n = df_année_n['Ca_ht'].sum().round()
     ca_année_n_1 = df_ventes.query('année == 2024')['Ca_ht'].sum().round().copy()
-    ms_c_année_n = df_rh['Montant'].sum().round() / ca_année_n
+    df_rh['année'] = df_rh['Date'].dt.year 
+    ms_c_année_n = df_rh.query("année == @année_n")['Montant'].sum().round() / ca_année_n
     ms_c_cible = 0.35
     delta_msc_c = ms_c_année_n - ms_c_cible
     food_ca_année_n = df_année_n['Food_ht'].sum()
@@ -259,16 +261,16 @@ with tab1: ## VUE GLOBALE
 
     ## --- PRÉPARATION DES DES VARIABLES ET DES DONNÉES -----
     var = df_events.query('année == @année_n').groupby('Site')['Ca_ht'].sum().round().reset_index().sort_values('Ca_ht', ascending=False)
-    ca_events = df_events['Ca_ht'].sum()
-    ca_events_privat = df_events.query("Ca_ht > 6000")['Ca_ht'].sum()
-    ca_event_exploitation = df_events.query("Ca_ht < 6000")['Ca_ht'].sum()
+    ca_events = var['Ca_ht'].sum()
+    ca_events_privat = df_events.query("année == @année_n and Ca_ht > 6000")['Ca_ht'].sum()
+    ca_event_exploitation = df_events.query("année == @année_n and Ca_ht < 6000")['Ca_ht'].sum()
     pct_privatision =  1 - (ca_events_privat /ca_events)
     pct_exploitation = 1 - (ca_event_exploitation / ca_events)
-    cvt_event = df_events['Nb_de_cvts'].sum()
-    event_tckmean_privat = ca_events_privat / df_events.query("Ca_ht > 6000")['Nb_de_cvts'].sum() 
-    cvt_event_privat = df_events.query("Ca_ht > 6000")['Nb_de_cvts'].sum() 
-    event_tckmean_exploit = ca_event_exploitation / df_events.query("Ca_ht < 6000")['Nb_de_cvts'].sum()
-    cvt_event_exploit = df_events.query("Ca_ht < 6000")['Nb_de_cvts'].sum()
+    cvt_event = df_events.query('année == @année_n')['Nb_de_cvts'].sum()
+    event_tckmean_privat = ca_events_privat / df_events.query("année == @année_n and Ca_ht > 6000")['Nb_de_cvts'].sum() 
+    cvt_event_privat = df_events.query("année == @année_n and Ca_ht > 6000")['Nb_de_cvts'].sum() 
+    event_tckmean_exploit = ca_event_exploitation / df_events.query("année == @année_n and Ca_ht < 6000")['Nb_de_cvts'].sum()
+    cvt_event_exploit = df_events.query("année == @année_n and Ca_ht < 6000")['Nb_de_cvts'].sum()
 
     ## --- AFFICHAGE DES METRICS SUR STREAMLIT ----- 
     col_1, col_2, col_3 = st.columns(3)
@@ -304,7 +306,7 @@ with tab1: ## VUE GLOBALE
     ## ---- VUE EN SCATTER DES EVENEMENT PAR POINT DE VENTE ---- 
     with col_b:
         fig_events_b = px.scatter(
-            df_events,
+            df_events.query('année == @année_n'),
             x='Date',
             y='Ca_ht',
             color='Site',
@@ -337,7 +339,8 @@ with tab2: ## VUE PAR SITE
     ca_2025 = df_ventes.query("année == @année_n and Site == @site").groupby('année')['Ca_ht'].sum().reset_index()
     ca_2025 = ca_2025['Ca_ht'].sum()
     ca_2024 = df_ventes.query('année == 2024 and Site==@site')['Ca_ht'].sum()
-    ms_c = df_rh.query('Site == @site')['Montant'].sum() / ca_2025
+    df_rh['année'] = df_rh['Date'].dt.year
+    ms_c = df_rh.query('année == @année_n and Site == @site')['Montant'].sum() / ca_2025
     valeur_cible_msc = 0.35
     delta_reel = valeur_cible_msc - ms_c
     nb_cvt = df_2025['Nb_de_cvts'].sum()
@@ -363,11 +366,10 @@ with tab2: ## VUE PAR SITE
     a, b, c, d = st.columns(4)
 
     a.metric('**Nb de couverts**', f'{nb_cvt:,.0f}'.replace(",", " "), delta=f'{nb_cvt/nb_cvts_année_n:.0%}', delta_arrow='off', delta_color='blue', delta_description='Total de couverts')
-    b.metric('**Ticket moyen**', f'{ca_2025/nb_cvt:,.2f} €', delta='Pas de données N-1', delta_arrow='off', delta_color='gray')
+    b.metric('**Ticket moyen**', f'{ca_2025/nb_cvt:,.2f} €', delta= '', delta_arrow='off', delta_color='gray')
     c.metric("**CA Food HT**", f'{food_ca:,.0f} €'.replace(",", " "), delta=f'{food_ca/ca_2025:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA**')
     d.metric("**CA Bev HT**", f'{bev_ca:,.0f} €'.replace(',', ' '), delta=f'{bev_ca/ca_2025:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA**')
 
-    "---"
     #  ------ GRAPHIQUE DE COMPARAISON CHIFFRE D'AFFAIRE PAR SITE YOY -----
     st.write(f'Evolution du CA mensuel comparaison YoY (N-1) : {site}')
     fig_pv = px.bar(
@@ -784,9 +786,9 @@ with tab7: ## VUE STOCK
 
     ### ----- VARIABLE DES KPI ---- 
     
-    achat = df_stock.query('`Type de mouvement`== ("Entrée")')['Total'].sum()
-    achat_food = df_stock.query('`Type de mouvement` == ("Entrée") and Departement == ("Food")')['Total'].sum()
-    achat_bev = df_stock.query('`Type de mouvement` == ("Entrée") and Departement == ("Boisson")')['Total'].sum()
+    achat = df_facture.query('Catégorie == ("Food", "Boissons")')['Montant_ht'].sum()
+    achat_food = df_facture.query('Catégorie == ("Food")')['Montant_ht'].sum()
+    achat_bev = df_facture.query('Catégorie == ("Boissons")')['Montant_ht'].sum()
 
     consommer = df_stock.query('`Type de mouvement` == ("Sortie")')['Total'].sum()
     sortie_food = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Food")')['Total'].sum()
@@ -866,9 +868,9 @@ with tab8: ## PRÉVISION PROPHET 7 JOURS
                 # Graphique
                 from prophet.plot import plot_plotly
                 fig = plot_plotly(model, forecast)
-                fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours : {sel_site}")
+                fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours (incluant météo) : {sel_site}")
                 st.plotly_chart(fig, use_container_width=True)
-with tab9:
+with tab9: ## ARCHIVES 
     with st.expander('**Historique Master Data**'):
         df_ventes['Date'] = df_ventes['Date'].dt.date
         st.dataframe(df_ventes, hide_index=True, use_container_width=True)
