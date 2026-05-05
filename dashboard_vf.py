@@ -585,7 +585,7 @@ with tab4: ## VUE SUIVIT DU CASH
     df_cash["mois"] = df_cash['Date'].dt.month
     depot = df_cash.query('mois > 4')['Montant'].sum()
     fond_caisse = df_cash.query('mois < 4')['Montant'].sum()
-    df_cash_visuel = df_cash.copy()
+    df_cash_visuel = df_cash.query('mois > 4').copy()
     df_cash_visuel['Date dépôt'] = df_cash_visuel['Date'].dt.date
     df_cash_visuel = df_cash_visuel[['Date dépôt', 'Montant','Numero_ticket']]
 
