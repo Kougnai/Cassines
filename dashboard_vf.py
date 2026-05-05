@@ -228,7 +228,7 @@ with tab1: ## VUE GLOBALE
         # 3. Création du graphique de base
         ca_month_copy = ca_month.copy()
         ca_month_copy['année'] = ca_month_copy['année'].astype(str)
-        fig_total = px.bar(
+        fig_total = px.line(
             ca_month_copy,
             x=mode,
             y='Ca_ht',
@@ -246,7 +246,7 @@ with tab1: ## VUE GLOBALE
             name='Record Historique',
             text=[f"🏆 Record : {ca_max:,.0f} €".replace(',', ' ')],
             textposition="top center",
-            marker=dict(color='gold', size=12),
+            marker=dict(color='gold', size=12, symbol='star'),
             showlegend=False
         )
 
