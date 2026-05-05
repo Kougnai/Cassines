@@ -213,7 +213,7 @@ with tab1: ## VUE GLOBALE
     with cols[0]:
         mode = st.segmented_control('**Mode de vue**', options=['mois', 'iso_semaine'], default='mois')
     with cols[1]:
-        year = st.pills('**Choissir l\'année**', options=df_ventes['année'].unique(), default=[2024, 2025], selection_mode='multi')
+        year = st.pills('**Choissir l\'année**', options=df_ventes['année'].unique(), default=[2025, 2026], selection_mode='multi')
     with cols[2]:
         site = st.pills('**Point de vente**', options=df_ventes['Site'].unique(),default='Guinguette' , selection_mode='multi')
 
@@ -226,8 +226,10 @@ with tab1: ## VUE GLOBALE
         max_annee = ca_month.loc[idx_max, 'année']
 
         # 3. Création du graphique de base
-        fig_total = px.line(
-            ca_month,
+        ca_month_copy = ca_month.copy()
+        ca_month_copy['année'] = ca_month_copy['année'].astype(str)
+        fig_total = px.bar(
+            ca_month_copy,
             x=mode,
             y='Ca_ht',
             color='année',
@@ -244,7 +246,7 @@ with tab1: ## VUE GLOBALE
             name='Record Historique',
             text=[f"🏆 Record : {ca_max:,.0f} €".replace(',', ' ')],
             textposition="top center",
-            marker=dict(color='gold', size=12, symbol='star'),
+            marker=dict(color='gold', size=12),
             showlegend=False
         )
 
@@ -580,19 +582,12 @@ with tab4: ## VUE SUIVIT DU CASH
 
     ## --- CHIFFRE D'AFFAIRE --- 
     recette = df_ventes.query('année == @année_n')['Espece'].sum()
-    depot = df_cash['Montant'].sum()
+    df_cash["mois"] = df_cash['Date'].dt.month
+    depot = df_cash.query('mois > 4')['Montant'].sum()
+    fond_caisse = df_cash.query('mois < 4')['Montant'].sum()
     df_cash_visuel = df_cash.copy()
     df_cash_visuel['Date dépôt'] = df_cash_visuel['Date'].dt.date
     df_cash_visuel = df_cash_visuel[['Date dépôt', 'Montant','Numero_ticket']]
-
-    ## --- TIPS ----
-    df_tips['Date'] = df_tips['Date'].dt.date
-    tips_recu = df_ventes.query('année == @année_n').groupby('Site')['Tips'].sum().reset_index().copy()
-    tips_donner = df_tips.groupby('Site')['Montant'].sum().reset_index().copy()
-    tips_consolider = pd.merge(tips_recu, tips_donner, how='left', on='Site')
-    tips_consolider['Solde'] = tips_consolider['Tips'] - tips_consolider['Montant']
-    tips_consolider.columns = ['Site', 'Tips Récuperer', 'Tips Donner', 'Solde']
-    
 
     ### ----- INDICATEUR DE CASH CHIFFRE D'AFFAIRE ---- 
 
@@ -608,15 +603,6 @@ with tab4: ## VUE SUIVIT DU CASH
     with cols[3]:
         st.write('**Historique dépôt**')
         st.dataframe(df_cash_visuel, hide_index=True)
-    
-    st.header('**Suivi des tips**', divider='blue')
-    cols = st.columns(2)
-    with cols[0]:
-        st.subheader('**Synthèse des Tips**')
-        st.dataframe(tips_consolider, hide_index=True)
-    with cols[1]:
-        st.subheader('**Historique des Tips**')
-        st.dataframe(df_tips, hide_index=True, use_container_width=True)
 
     ## ---- CHECK DES ENVELOPPES ---
     st.subheader('**Audit des envellopes**', divider='blue')
@@ -787,70 +773,70 @@ with tab6: ## VUE AUDIT DES DONNÉES
 
     st.dataframe(data_ajouter, hide_index=True)    
 with tab7: ## VUE STOCK
+    st.header('**En cours de création**')
+#     st.header('**Suivi du stock**', divider = 'blue', text_alignment='center')
 
-    st.header('**Suivi du stock**', divider = 'blue', text_alignment='center')
+#     ## --- IMPORTATION DES DONNÉES ET MISE EN FORME ---
+#     df_stock['Date_heure'] = pd.to_datetime(df_stock['Date_heure'], dayfirst=True)
+#     df_stock = df_stock.assign(
+#         année = df_stock['Date_heure'].dt.year,
+#         mois = df_stock['Date_heure'].dt.month,
+#         iso_semaine = df_stock['Date_heure'].dt.isocalendar().week
+#     )
+#     df_stock.columns = df_stock.columns.str.strip()
 
-    ## --- IMPORTATION DES DONNÉES ET MISE EN FORME ---
-    df_stock['Date_heure'] = pd.to_datetime(df_stock['Date_heure'], dayfirst=True)
-    df_stock = df_stock.assign(
-        année = df_stock['Date_heure'].dt.year,
-        mois = df_stock['Date_heure'].dt.month,
-        iso_semaine = df_stock['Date_heure'].dt.isocalendar().week
-    )
-    df_stock.columns = df_stock.columns.str.strip()
-
-    ### ----- VARIABLE DES KPI ---- 
+#     ### ----- VARIABLE DES KPI ---- 
     
-    achat = df_facture.query('Catégorie == ("Food", "Boissons")')['Montant_ht'].sum()
-    achat_food = df_facture.query('Catégorie == ("Food")')['Montant_ht'].sum()
-    achat_bev = df_facture.query('Catégorie == ("Boissons")')['Montant_ht'].sum()
+#     achat = df_facture.query('Catégorie == ("Food", "Boissons")')['Montant_ht'].sum()
+#     achat_food = df_facture.query('Catégorie == ("Food")')['Montant_ht'].sum()
+#     achat_bev = df_facture.query('Catégorie == ("Boissons")')['Montant_ht'].sum()
 
-    consommer = df_stock.query('`Type de mouvement` == ("Sortie")')['Total'].sum()
-    sortie_food = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Food")')['Total'].sum()
-    sortie_bev = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Boisson")')['Total'].sum()
+#     consommer = df_stock.query('`Type de mouvement` == ("Sortie")')['Total'].sum()
+#     sortie_food = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Food")')['Total'].sum()
+#     sortie_bev = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Boisson")')['Total'].sum()
     
-    stock_delta = achat - consommer
-    stock_delta_food = achat_food - sortie_food
-    stock_delta_bev = achat_bev - sortie_bev
+#     stock_delta = achat - consommer
+#     stock_delta_food = achat_food - sortie_food
+#     stock_delta_bev = achat_bev - sortie_bev
 
-    ### --- AFFICHAGE DES INDICATEURS STREAMLIT ----
+#     ### --- AFFICHAGE DES INDICATEURS STREAMLIT ----
 
-    st.subheader('**Stock en cours**', divider='red')
-    cols = st.columns(3)
-    cols[0].metric('**Stock en cours HT**', value=f'{stock_delta:,.0f} €'.replace(',', ' '))
-    cols[1].metric('**Stock en cours - Food HT**', value=f'{stock_delta_food:,.0f} €'.replace(',',' '))
-    cols[2].metric('**Stock en cours - Bev HT**', value=f'{stock_delta_bev:,.0f} €'.replace(',',' '))
-    st.subheader('**Total des achats HT**', divider='red')
-    cols = st.columns(3)
-    cols[0].metric('**Total des achats HT**', value=f'{achat:,.0f} €'.replace(',', ' '))
-    cols[1].metric('**Total achat - Food HT**', value=f'{achat_food:,.0f} €'.replace(',',' '))
-    cols[2].metric('**Total achat - Bev HT**', value=f'{achat_bev:,.0f} €'.replace(',',' '))
-    st.subheader('**Total des sorties de stock HT**', divider='red')
-    cols = st.columns(3)
-    cols[0].metric('**Total sortie HT**', value=f'{consommer:,.0f} €'.replace(',', ' '))
-    cols[1].metric('**Total sortie - Food HT**', value=f'{sortie_food:,.0f} €'.replace(',',' '))
-    cols[2].metric('**Total sortie - Bev HT**', value=f'{sortie_bev:,.0f} €'.replace(',',' '))
+#     st.subheader('**Stock en cours**', divider='red')
+#     cols = st.columns(3)
+#     cols[0].metric('**Stock en cours HT**', value=f'{stock_delta:,.0f} €'.replace(',', ' '))
+#     cols[1].metric('**Stock en cours - Food HT**', value=f'{stock_delta_food:,.0f} €'.replace(',',' '))
+#     cols[2].metric('**Stock en cours - Bev HT**', value=f'{stock_delta_bev:,.0f} €'.replace(',',' '))
+#     st.subheader('**Total des achats HT**', divider='red')
+#     cols = st.columns(3)
+#     cols[0].metric('**Total des achats HT**', value=f'{achat:,.0f} €'.replace(',', ' '))
+#     cols[1].metric('**Total achat - Food HT**', value=f'{achat_food:,.0f} €'.replace(',',' '))
+#     cols[2].metric('**Total achat - Bev HT**', value=f'{achat_bev:,.0f} €'.replace(',',' '))
+#     st.subheader('**Total des sorties de stock HT**', divider='red')
+#     cols = st.columns(3)
+#     cols[0].metric('**Total sortie HT**', value=f'{consommer:,.0f} €'.replace(',', ' '))
+#     cols[1].metric('**Total sortie - Food HT**', value=f'{sortie_food:,.0f} €'.replace(',',' '))
+#     cols[2].metric('**Total sortie - Bev HT**', value=f'{sortie_bev:,.0f} €'.replace(',',' '))
 
-    ### --- APPLICATION DES FILTRES PAR POINT DE VENTE --- 
-    st.subheader('**Food & Bev - COGS**', divider='red')
-    cols = st.columns(3)
-    with cols[0]:
-        cogs_site = st.pills('**Quels sites ?**', options=df_ventes['Site'].unique())
-        ## ---- CALCUL DU FOOD ET BEV COGS -----
-        ca_cogs = df_ventes.query('année == @année_n and Site == @cogs_site')['Ca_ht'].sum()
-        food_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Food")')['Total'].sum() /
-                     ca_cogs
-        )
-        food_cogs_cible = 35
-        bev_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Boisson")')['Total'].sum() /
-                     ca_cogs
-        )
-        bev_cost_cible = 25
+#     ### --- APPLICATION DES FILTRES PAR POINT DE VENTE --- 
+#     st.subheader('**Food & Bev - COGS**', divider='red')
+#     cols = st.columns(3)
+#     with cols[0]:
+#         cogs_site = st.pills('**Quels sites ?**', options=df_ventes['Site'].unique())
+#         ## ---- CALCUL DU FOOD ET BEV COGS -----
+#         ca_cogs = df_ventes.query('année == @année_n and Site == @cogs_site')['Ca_ht'].sum()
+#         food_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Food")')['Total'].sum() /
+#                      ca_cogs
+#         )
+#         food_cogs_cible = 35
+#         bev_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Boisson")')['Total'].sum() /
+#                      ca_cogs
+#         )
+#         bev_cost_cible = 25
 
-    with cols[1]:
-        st.metric('**Food COGS**', value=f'{food_cost:.2%}', delta=f'{food_cost - food_cogs_cible:,.2f}', delta_color='inverse')
-    with cols[2]:
-        st.metric('**Bev COGS**', value=f'{bev_cost:.2%}', delta=f'{bev_cost - bev_cost_cible:,.2f}', delta_color='inverse')
+#     with cols[1]:
+#         st.metric('**Food COGS**', value=f'{food_cost:.2%}', delta=f'{food_cost - food_cogs_cible:,.2f}', delta_color='inverse')
+#     with cols[2]:
+#         st.metric('**Bev COGS**', value=f'{bev_cost:.2%}', delta=f'{bev_cost - bev_cost_cible:,.2f}', delta_color='inverse')
 with tab8: ## PRÉVISION PROPHET 7 JOURS
     st.header("🔮 Prévisions d'Exploitation (7 jours)", divider='blue')
 
