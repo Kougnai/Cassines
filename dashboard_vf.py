@@ -181,6 +181,10 @@ with tab1: ## VUE GLOBALE
     bev_cogs = bev_ca_année_n / ca_année_n
     nb_cvts_année_n = df_année_n['Nb_de_cvts'].sum().round()
 
+    #### ANNÉE N-1 
+    couvert_annee_n_1 = df_ventes.query('année == 2025')['Nb_de_cvts'].sum()
+    ticket_moyen_n_1 = ca_année_n_1 / couvert_annee_n_1
+
     ############################
 
     ## Affichage des données
@@ -198,7 +202,7 @@ with tab1: ## VUE GLOBALE
     #Nombre de couvert
     cola.metric('Nombre de couvert', value=f'{nb_cvts_année_n:,.0f}'.replace(",", " "), delta='100 %', delta_color='blue', delta_arrow='off')
     #Ticket moyen
-    colb.metric('Ticket moyen', value=f'{ca_année_n/nb_cvts_année_n:,.2f} €'.replace(",", " "), delta='Global', delta_color='orange', delta_arrow='off')
+    colb.metric('Ticket moyen', value=f'{ca_année_n/nb_cvts_année_n:,.2f} €'.replace(",", " "), delta=f'{(ca_année_n/nb_cvts_année_n) - ticket_moyen_n_1 :,.2f} €')
     # Food Cost
     colc.metric('**Food COGS**', value='32%', delta=f'{abs(28-32)} %', delta_arrow='up', delta_color='inverse', delta_description='Pas dynamique')
     # Bev cost
@@ -358,7 +362,7 @@ with tab2: ## VUE PAR SITE
     # Chiffre d'affaire
     col1.metric("**Chiffre d'affaire HT**", f'{ca_2025:,.0f} €'.replace(",", " "), delta=f'{(ca_2025-ca_2024):,.0f} €'.replace(",", " "), delta_description='**vs N-1**')
     # Masse salarial Chargé
-    col2.metric('**Masse salariale / chargée**', f'{ms_c:.0%}', delta=f'{delta_reel:.2%} ', delta_arrow='auto' )
+    col2.metric('**Masse salariale / chargée**', f'{ms_c:.0%}', delta=f'{delta_reel:.0%} ', delta_arrow='up' )
     # Food Cost
     col3.metric('**Food COGS**', value='32%', delta=f'{abs(28-32)} %', delta_arrow='up', delta_color='inverse', delta_description='Pas dynamique')
     # Bev cost 
@@ -409,7 +413,7 @@ with tab2: ## VUE PAR SITE
         ## Graphique de group de température 
 
         # Création des bins et groupby
-        group_temp = df_2025.copy()
+        group_temp = df_ventes.query("année > 2024 and Site == @site").copy()
         bins = [-float('inf'), 15, 25, 30, float('inf')]
         labels = ['0-15°C', '16-25°C', '26-30°C', '+ 31°C']
 
@@ -466,7 +470,7 @@ with tab2: ## VUE PAR SITE
     with col_pluie_2:
 
         ## --- Graphique bar de Pluie
-        group_pluie = df_2025.copy()
+        group_pluie = df_ventes.query("année > 2024 and Site == @site").copy()
 
         bins = [-float('inf'), 10, 20, 30, float('inf')]
         labels = ['0-10 mm', '11-20 mm', '21-30 mm', '+ 31 mm']
