@@ -24,10 +24,12 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
 
-    /* 3. Modernisation des Onglets (Tabs) */
+    /* 3. Modernisation et Centrage des Onglets (Tabs) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: transparent;
+        justify-content: center; /* <--- AJOUTÉ : Centre la liste des onglets */
+        width: 100%;
     }
     .stTabs [data-baseweb="tab"] {
         background-color: #151921;
@@ -77,38 +79,14 @@ def get_data():
     # 6. Ouverture du Spreadsheet
     spreadsheet = client.open("Cassines_bdd")
     
-    onglets = ['Ventes', 'Caisse', 'Events', 'Rh', 'Cash', 'Tips','Bon_livraison', 'Facture', 'Stock', 'Enveloppe'] # Selectionner les onglets
+    onglets = ['Ventes', 'Caisse', 'Events', 'Rh', 'Cash','Bon_livraison', 'Facture', 'Stock', 'Enveloppe'] # Selectionner les onglets
     
     # 7. Extraction des données
     data = {nom: pd.DataFrame(spreadsheet.worksheet(nom).get_all_records(value_render_option='FORMATTED_VALUE')) for nom in onglets}
     
     return data
-@st.cache_resource
-def train_and_eval_prophet(df, site_name):
-    # 1. On prend les données du site
-    df_p = df[df['Site'] == site_name].copy()
-    df_p = df_p.groupby('Date')['Ca_ht'].sum().reset_index()
-    df_p.columns = ['ds', 'y']
-    df_p = df_p[df_p['y'] > 10] # On vire les jours fermés
 
-    if len(df_p) < 14: return None, 0, 0
 
-    # 2. On entraîne le modèle sur TOUT
-    m = Prophet(yearly_seasonality=True, weekly_seasonality=True)
-    m.add_country_holidays(country_name='FR')
-    m.fit(df_p)
-
-    # 3. Calcul de fiabilité tout bête : on compare les 7 derniers jours réels
-    # aux 7 derniers jours que le modèle vient de "re-prédire"
-    last_7_days = df_p.tail(7)
-    forecast = m.predict(last_7_days[['ds']])
-    
-    # Écart moyen en € (MAE)
-    mae = abs(last_7_days['y'].values - forecast['yhat'].values).mean()
-    # % d'erreur (MAPE)
-    mape = (abs(last_7_days['y'].values - forecast['yhat'].values) / last_7_days['y'].values).mean()
-
-    return m, mae, mape
 # --- METEO ---
 @st.cache_data
 def add_weather_data(df):
@@ -124,10 +102,10 @@ def add_weather_data(df):
 
 ## ---- CHARGEMENT DES DONNÉES -----
 dfs = get_data()
-df_ventes, df_caisse, df_events, df_rh, df_cash, df_tips, df_bl, df_facture, df_stock, df_enveloppe = dfs['Ventes'],dfs['Caisse'], dfs['Events'], dfs['Rh'], dfs['Cash'], dfs['Tips'], dfs['Bon_livraison'], dfs['Facture'], dfs['Stock'], dfs['Enveloppe']
+df_ventes, df_caisse, df_events, df_rh, df_cash, df_bl, df_facture, df_stock, df_enveloppe = dfs['Ventes'],dfs['Caisse'], dfs['Events'], dfs['Rh'], dfs['Cash'], dfs['Bon_livraison'], dfs['Facture'], dfs['Stock'], dfs['Enveloppe']
 
 ## ---- NETTOYAGE ET CONVERSION ---
-onglets_list = [df_cash, df_caisse, df_events, df_rh, df_tips, df_ventes, df_bl, df_facture, df_stock, df_enveloppe]
+onglets_list = [df_cash, df_caisse, df_events, df_rh, df_ventes, df_bl, df_facture, df_stock, df_enveloppe]
 col_num = ['Ca_ttc', 'Taxes_20', 'Taxes_10', 'Taxes_5.5','Ca_ht','Cb','Espece', 
             'Cheque', 'Autres_ht', 'Privatisation_ht', 'Food_ht', 'Bev_ht',
              'Nb_de_cvts', 'Autres', 'Tips', 'Autre_ht', 'Montant', 'Montant_ht','Quantité', 'Prix d\'achat', 'Total']
@@ -148,66 +126,82 @@ for df in onglets_list:
 df_ventes = add_weather_data(df_ventes)
 
 ## ----- CRÉATION DES TABLES -----
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(["🌍 Vue globale", "📍 Vue par site", "📄 Compte Fournisseur", "💶 Cash",'👨‍🍳 Masse salariale', '✏️ Audit données', '📊 Stock', '🔮 Prévision', '📚 Archives'] )
+tab1, tab2, tab3, tab4, tab5, tab9 = st.tabs(["🌍 Vue globale", "📍 Vue par site", "📄 Compte Fournisseur", "💶 Cash",'👨‍🍳 Masse salariale','📚 Archives'] )
 
 with tab1: ## VUE GLOBALE 
     ### Analyse globale  KPI
 
-    # --- CALCULS KIPS ---
-    
+    # --- CALCULS KPIs ---
+    # En une seule passe pour optimiser les performances
     df_ventes = df_ventes.assign(
-    année = df_ventes['Date'].dt.year,
-    mois = df_ventes['Date'].dt.month,
-    iso_semaine = df_ventes['Date'].dt.isocalendar().week,
-    ticket_moyen = (df_ventes['Ca_ht'] / df_ventes['Nb_de_cvts']),
-    jour_année = df_ventes['Date'].dt.day_of_year,
-    jour_semaine = df_ventes['Date'].dt.day_of_week,
+        année=df_ventes['Date'].dt.year,
+        mois=df_ventes['Date'].dt.month,
+        iso_semaine=df_ventes['Date'].dt.isocalendar().week,
+        ticket_moyen=df_ventes['Ca_ht'] / df_ventes['Nb_de_cvts'],
+        jour_année=df_ventes['Date'].dt.day_of_year,
+        jour_semaine=df_ventes['Date'].dt.day_of_week,
     )
-    
 
-    #### --------- TOUTE LES VARIABLES DU DASHBOARD ------
-
+    # --- DATES & FILTRES ---
     année_n = df_ventes['année'].max()
+    année_n_1 = année_n - 1
+
+    # Trouver le dernier jour enregistré en année N
+    dernier_jour_n = df_ventes.query('année == @année_n')['jour_année'].max()
+    dernier_semaine_n = df_ventes.query('année == @année_n')['iso_semaine'].max()
+
+    # Données Année N
     df_année_n = df_ventes.query('année == @année_n').copy()
-    ca_année_n = df_année_n['Ca_ht'].sum().round()
-    ca_année_n_1 = df_ventes.query('année == 2024')['Ca_ht'].sum().round().copy()
+
+    # Données Année N-1 filtrées À DATE (YTD)
+    df_année_n_1_ytd = df_ventes.query('année == @année_n_1 & jour_année <= @dernier_jour_n')
+
+    # --- CALCULS DES METRICS ---
+    # Chiffre d'affaires
+    ca_année_n = df_année_n['Ca_ht'].sum()
+    ca_année_n_1_ytd = df_année_n_1_ytd['Ca_ht'].sum()
+    delta_ca = ca_année_n - ca_année_n_1_ytd
+
+    # Couverts & Ticket Moyen
+    nb_cvts_année_n = df_année_n['Nb_de_cvts'].sum()
+    nb_cvts_n_1_ytd = df_année_n_1_ytd['Nb_de_cvts'].sum()
+
+    ticket_moyen_n = ca_année_n / nb_cvts_année_n if nb_cvts_année_n else 0
+    ticket_moyen_n_1_ytd = ca_année_n_1_ytd / nb_cvts_n_1_ytd if nb_cvts_n_1_ytd else 0
+    delta_ticket_moyen = ticket_moyen_n - ticket_moyen_n_1_ytd
+
+    # RH & COGS
     df_rh['année'] = df_rh['Date'].dt.year 
-    ms_c_année_n = df_rh.query("année == @année_n")['Montant'].sum().round() / ca_année_n
-    ms_c_cible = 0.35
-    delta_msc_c = ms_c_année_n - ms_c_cible
+    ms_c_année_n = df_rh.query("année == @année_n")['Montant'].sum() / ca_année_n if ca_année_n else 0
+    delta_msc_c = ms_c_année_n - 0.35
+
     food_ca_année_n = df_année_n['Food_ht'].sum()
-    food_cogs = food_ca_année_n / ca_année_n
+    food_cogs = food_ca_année_n / ca_année_n if ca_année_n else 0
+
     bev_ca_année_n = df_année_n['Bev_ht'].sum()
-    bev_cogs = bev_ca_année_n / ca_année_n
-    nb_cvts_année_n = df_année_n['Nb_de_cvts'].sum().round()
+    bev_cogs = bev_ca_année_n / ca_année_n if ca_année_n else 0
 
-    #### ANNÉE N-1 
-    couvert_annee_n_1 = df_ventes.query('année == 2025')['Nb_de_cvts'].sum()
-    ticket_moyen_n_1 = ca_année_n_1 / couvert_annee_n_1
+    # --- AFFICHAGE STREAMLIT ---
+    st.subheader(f'KPI : {année_n} Semaine : N° {dernier_semaine_n}', divider='blue')
 
-    ############################
-
-    ## Affichage des données
-    st.subheader(f'KPI : {année_n}', text_alignment='center', divider='blue')
+    # Fonctions de formatage locales rapides
+    fmt_euro = lambda x: f"{x:,.0f} €".replace(",", " ")
+    fmt_euro_2d = lambda x: f"{x:,.2f} €".replace(",", " ")
+    fmt_qty = lambda x: f"{x:,.0f}".replace(",", " ")
 
     cola, colb, colc, cold = st.columns(4)
-    #Chiffre d'affaire HT
-    cola.metric("Chiffre d'affaire HT", value=f'{ca_année_n:,.0f} €'.replace(",", " "), delta=f'{ca_année_n-ca_année_n_1:,.0f} €'.replace(',', ' '), delta_description="VS N-1", help='Contient le chiffre d\'affaire pour privatisation')
-    # Ms/c 
-    colb.metric('MS/C',value=f'{ms_c_année_n:.2%}', delta=f'{delta_msc_c:.2%}', delta_color='inverse')
-    #Food HT
-    colc.metric('Food HT',value=f'{food_ca_année_n:,.0f} €'.replace(",", " "), delta=f'{food_cogs:.2%}', delta_color='off',delta_arrow='off', delta_description="Du chiffre d'affaire")
-    #bev HT
-    cold.metric('Bev HT',value=f'{bev_ca_année_n:,.0f} €'.replace(",", " "), delta=f'{bev_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="Du chiffre d'affaire")
-    #Nombre de couvert
-    cola.metric('Nombre de couvert', value=f'{nb_cvts_année_n:,.0f}'.replace(",", " "), delta='100 %', delta_color='blue', delta_arrow='off')
-    #Ticket moyen
-    colb.metric('Ticket moyen', value=f'{ca_année_n/nb_cvts_année_n:,.2f} €'.replace(",", " "), delta=f'{(ca_année_n/nb_cvts_année_n) - ticket_moyen_n_1 :,.2f} €')
-    # Food Cost
-    colc.metric('**Food COGS**', value='32%', delta=f'{abs(28-32)} %', delta_arrow='up', delta_color='inverse', delta_description='Pas dynamique')
-    # Bev cost
-    cold.metric('**Bev COGS**', value='27%', delta=f'{abs(25-27)} %', delta_arrow='up', delta_color='inverse',delta_description='Pas dynamique')
-    st.write('')
+
+    # Ligne 1
+    cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 à date")
+    colb.metric('MS/C', value=f'{ms_c_année_n:.2%}', delta=f'{delta_msc_c:.2%}', delta_color='inverse')
+    colc.metric('Food HT', value=fmt_euro(food_ca_année_n), delta=f'{food_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+    cold.metric('Bev HT', value=fmt_euro(bev_ca_année_n), delta=f'{bev_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+
+    # Ligne 2
+    cola.metric('Nombre de couvert', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 à date")
+    colb.metric('Ticket moyen', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen))
+    colc.metric('Food COGS', value='32%', delta='4%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
+    cold.metric('Bev COGS', value='27%', delta='2%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
 
     ######### EVOLUTION DU CHIFFRE D'AFFAIRE YOY GLOBALE
 
@@ -329,101 +323,152 @@ with tab1: ## VUE GLOBALE
             st.dataframe(df_events, hide_index=True)
 with tab2: ## VUE PAR SITE 
         
-    #  ---- Filtre dynamique ----- 
+   # --- FILTRE DYNAMIQUE DES SITES ---
     pv = df_ventes['Site'].unique()
 
-    st.header('Quels sites voulez-vous ?', text_alignment='center')
+    st.header('Quels sites ?', text_alignment='center')
     aa, ab, ac = st.columns(3)
     with ab:
-        site = st.pills('', options=pv, default='Guinguette', width=500)
+        # Changement du défaut pour être robuste si 'Guinguette' n'est pas présent
+        default_site = 'Guinguette' if 'Guinguette' in pv else pv[0]
+        site = st.pills('', options=pv, default=default_site, width=500)
 
-    ##### ------ Préparation des données avec filtre 
-    df_filtrer = df_ventes.query("année== [@année_n, @année_n -1] and Site == @site").copy() # < --- CHANGER LA DATE POUR 2026, 2025
-    df_2025 = df_ventes.query('année ==@année_n and Site == @site').copy()
-    var_pv = df_filtrer.groupby(["année","mois"])['Ca_ht'].sum().reset_index()
-    var_pv['année'] = var_pv['année'].astype(str)
-    ca_2025 = df_ventes.query("année == @année_n and Site == @site").groupby('année')['Ca_ht'].sum().reset_index()
-    ca_2025 = ca_2025['Ca_ht'].sum()
-    ca_2024 = df_ventes.query('année == 2024 and Site==@site')['Ca_ht'].sum()
+    # --- PRÉPARATION DES DONNÉES DYNAMIQUES & À DATE ---
+    année_n = df_ventes['année'].max()
+    année_n_1 = année_n - 1
+
+    # Trouver le dernier jour enregistré pour CE SITE en année N
+    dernier_jour_n_site = df_ventes.query('année == @année_n & Site == @site')['jour_année'].max()
+
+    # Si le site n'a pas encore de ventes en année N, on évite un plantage
+    if pd.isna(dernier_jour_n_site):
+        dernier_jour_n_site = df_ventes['jour_année'].max()
+
+    # Données Année N pour le site
+    df_site_n = df_ventes.query('année == @année_n & Site == @site').copy()
+
+    # Données Année N-1 pour le site filtrées À DATE (YTD)
+    df_site_n_1_ytd = df_ventes.query('année == @année_n_1 & Site == @site & jour_année <= @dernier_jour_n_site')
+
+    # --- CALCULS DES METRICS ---
+    # Chiffre d'affaires (Courant vs YTD)
+    ca_site_n = df_site_n['Ca_ht'].sum()
+    ca_site_n_1_ytd = df_site_n_1_ytd['Ca_ht'].sum()
+    delta_ca_site = ca_site_n - ca_site_n_1_ytd
+
+    # Masse Salariale
     df_rh['année'] = df_rh['Date'].dt.year
-    ms_c = df_rh.query('année == @année_n and Site == @site')['Montant'].sum() / ca_2025
+    ms_c_montant = df_rh.query('année == @année_n & Site == @site')['Montant'].sum()
+    ms_c = ms_c_montant / ca_site_n if ca_site_n else 0
     valeur_cible_msc = 0.35
-    delta_reel = valeur_cible_msc - ms_c
-    nb_cvt = df_2025['Nb_de_cvts'].sum()
-    food_ca = df_2025['Food_ht'].sum()
-    bev_ca = df_2025['Bev_ht'].sum()
+    # Inversion pour le delta (si ms_c < cible = positif/vert)
+    delta_msc = valeur_cible_msc - ms_c  
+
+    # Couverts & Ticket Moyen
+    nb_cvt_n = df_site_n['Nb_de_cvts'].sum()
+    nb_cvt_n_1_ytd = df_site_n_1_ytd['Nb_de_cvts'].sum()
+    delta_cvt = nb_cvt_n - nb_cvt_n_1_ytd
+
+    ticket_moyen_n = ca_site_n / nb_cvt_n if nb_cvt_n else 0
+    ticket_moyen_n_1_ytd = ca_site_n_1_ytd / nb_cvt_n_1_ytd if nb_cvt_n_1_ytd else 0
+    delta_ticket_moyen = ticket_moyen_n - ticket_moyen_n_1_ytd
+
+    # Food & Bev
+    food_ca = df_site_n['Food_ht'].sum()
+    food_cogs = food_ca / ca_site_n if ca_site_n else 0
+
+    bev_ca = df_site_n['Bev_ht'].sum()
+    bev_cogs = bev_ca / ca_site_n if ca_site_n else 0
 
     "---" 
 
-    ## ----- PARTIE 1/2 DES KPI ----
+    # --- AFFICHAGE STREAMLIT ---
     st.header(f'KPI : {site}', text_alignment='center')
 
+    # Fonctions de formatage locales
+    fmt_euro = lambda x: f"{x:,.0f} €".replace(",", " ")
+    fmt_euro_2d = lambda x: f"{x:,.2f} €".replace(",", " ")
+    fmt_qty = lambda x: f"{x:,.0f}".replace(",", " ")
+
+    ## ----- PARTIE 1/2 DES KPI ----
     col1, col2, col3, col4 = st.columns(4)
-    # Chiffre d'affaire
-    col1.metric("**Chiffre d'affaire HT**", f'{ca_2025:,.0f} €'.replace(",", " "), delta=f'{(ca_2025-ca_2024):,.0f} €'.replace(",", " "), delta_description='**vs N-1**')
-    # Masse salarial Chargé
-    col2.metric('**Masse salariale / chargée**', f'{ms_c:.0%}', delta=f'{delta_reel:.0%} ', delta_arrow='up' )
-    # Food Cost
-    col3.metric('**Food COGS**', value='32%', delta=f'{abs(28-32)} %', delta_arrow='up', delta_color='inverse', delta_description='Pas dynamique')
-    # Bev cost 
-    col4.metric('**Bev COGS**', value='27%', delta=f'{abs(25-27)} %', delta_arrow='up', delta_color='inverse',delta_description='Pas dynamique')
-    
-    ## ---- PARTI 2/2 DES KPI ----
+
+    # Chiffre d'affaires comparé à date
+    col1.metric("**Chiffre d'affaire HT**", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='**vs N-1 à date**')
+    # Masse salariale
+    col2.metric('**Masse salariale / chargée**', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
+    # COGS Statiques (en attendant dynamisation)
+    col3.metric('**Food COGS**', value='32%', delta='4%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
+    col4.metric('**Bev COGS**', value='27%', delta='2%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
+
+    ## ---- PARTIE 2/2 DES KPI ----
     a, b, c, d = st.columns(4)
 
-    a.metric('**Nb de couverts**', f'{nb_cvt:,.0f}'.replace(",", " "), delta=f'{nb_cvt/nb_cvts_année_n:.0%}', delta_arrow='off', delta_color='blue', delta_description='Total de couverts')
-    b.metric('**Ticket moyen**', f'{ca_2025/nb_cvt:,.2f} €', delta= '', delta_arrow='off', delta_color='gray')
-    c.metric("**CA Food HT**", f'{food_ca:,.0f} €'.replace(",", " "), delta=f'{food_ca/ca_2025:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA**')
-    d.metric("**CA Bev HT**", f'{bev_ca:,.0f} €'.replace(',', ' '), delta=f'{bev_ca/ca_2025:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA**')
+    # Nombre de couverts comparé à date
+    a.metric('**Nb de couverts**', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='**vs N-1 à date**')
+    # Ticket moyen comparé à date
+    b.metric('**Ticket moyen**', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='**vs N-1 à date**')
+    # Répartition CA
+    c.metric("**CA Food HT**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    d.metric("**CA Bev HT**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+
+   # --- PRÉPARATION DES DONNÉES GLOBALES POUR LES GRAPHES (SANS FILTRE À DATE) ---
+
+    # Extraction de la totalité historique pour le site sélectionné (Année N, N-1, etc.)
+    df_site_global = df_ventes.query("Site == @site").copy()
+
+    # Groupement mensuel complet pour le graphique YoY
+    var_pv = df_site_global.query("année in [@année_n, @année_n_1]").groupby(['année', 'mois'])['Ca_ht'].sum().reset_index()
+    var_pv['année'] = var_pv['année'].astype(str)
 
     #  ------ GRAPHIQUE DE COMPARAISON CHIFFRE D'AFFAIRE PAR SITE YOY -----
-    st.write(f'Evolution du CA mensuel comparaison YoY (N-1) : {site}')
+    st.write(f'Evolution du CA mensuel comparaison YoY : {site}')
     fig_pv = px.bar(
         var_pv, x='mois', y='Ca_ht',
-        template='simple_white',color='année', barmode='group',
-        labels={"Ca_ht": "<b>Chiffre d'affaire HT (€)</b>", 'mois':'<b>Numéro de mois</b>'}
+        template='simple_white', color='année', barmode='group',
+        labels={"Ca_ht": "<b>Chiffre d'affaire HT (€)</b>", 'mois': '<b>Numéro de mois</b>'}
     )
     fig_pv.update_traces(
-        texttemplate = '<b>%{value:.3s}€</b>', textposition = 'outside'
+        texttemplate='<b>%{value:.3s}€</b>', textposition='outside'
     )
     st.plotly_chart(fig_pv, use_container_width=True)
 
     "---"
+
     #### ----- TEMPÉRATURE ----- ####
-    st.subheader('Corrélation Température vs Chiffre d\'affaire', text_alignment='center')
+    st.subheader("Corrélation Température vs Chiffre d'affaire", text_alignment='center')
 
     col_temp_1, col_temp_2 = st.columns(2)
-    
+
     with col_temp_1:
-        # Graphique de Corrélation Température vs Chiffre d\'affaire'
+    # Nuage de points global sans distinction d'année
         fig_temp = px.scatter(
-            df_filtrer,
-            x='Temp_Max',
-            y='Ca_ht',
-            size='Nb_de_cvts',
-            color='Site',
-            trendline='ols',
-            template='simple_white',
-            labels={'Temp_Max' : '<b>Température °C</b>', "Ca_ht" : "<b>Chiffre d'affaire (€)</b>", "Nb_de_cvts" : '<b>Nombre de couverts</b>',  'Site' : "<b>Point de vente</b>"}    
+        df_site_global,
+        x='Temp_Max',
+        y='Ca_ht',
+        size='Nb_de_cvts',
+        color='Site',
+        trendline='ols',
+        template='simple_white',
+        labels={'Temp_Max': '<b>Température °C</b>', "Ca_ht": "<b>Chiffre d'affaire (€)</b>", "Nb_de_cvts": '<b>Nombre de couverts</b>', 'Site': "<b>Site</b>"}    
         )
         st.plotly_chart(fig_temp, use_container_width=True)
-    
-    with col_temp_2 :
 
-        ## Graphique de group de température 
-
-        # Création des bins et groupby
-        group_temp = df_ventes.query("année > 2024 and Site == @site").copy()
-        bins = [-float('inf'), 15, 25, 30, float('inf')]
-        labels = ['0-15°C', '16-25°C', '26-30°C', '+ 31°C']
+    with col_temp_2:
+        ## Graphique en barres par tranche de température global
+        group_temp = df_site_global.copy()
+        
+        bins_temp = [-float('inf'), 15, 25, 30, float('inf')]
+        labels_temp = ['0-15°C', '16-25°C', '26-30°C', '+ 31°C']
 
         group_temp['tranche_temp'] = pd.cut(
             group_temp['Temp_Max'], 
-            bins=bins, 
-            labels=labels,
+            bins=bins_temp, 
+            labels=labels_temp,
             right=True 
-        )
-        temp = group_temp.groupby(['Site','tranche_temp'])['Ca_ht'].sum().reset_index()
+            )
+        
+        temp = group_temp.groupby(['Site', 'tranche_temp'], observed=False)['Ca_ht'].sum().reset_index()
 
         fig_temp1 = px.bar(
             temp,
@@ -432,56 +477,56 @@ with tab2: ## VUE PAR SITE
             color='Site',
             text_auto='.2s',
             template='simple_white',
-            labels={'Ca_ht':'<b>Chiffre d\'affaire (€)</b>', 'tranche_temp':'<b>Catégorie de température</b>', 'Site' : "<b>Point de vente</b>"},
-            range_y=[0,temp['Ca_ht'].max() * 1.2]
-        )
+            labels={'Ca_ht': '<b>Chiffre d\'affaire (€)</b>', 'tranche_temp': '<b>Catégorie de température</b>', 'Site': "<b>Site</b>"},
+            range_y=[0, temp['Ca_ht'].max() * 1.2 if not temp.empty else 100]
+            )
         fig_temp1.update_traces(
-            textposition = 'outside',
-            texttemplate = '<b>%{value:.3s}€</b>'
-        )
+            textposition='outside',
+            texttemplate='<b>%{value:.3s}€</b>'
+            )
         st.plotly_chart(fig_temp1, use_container_width=True)
 
-    mean_temp = group_temp.groupby(['Site', 'tranche_temp'])['Ca_ht'].mean().reset_index().round()
+    # Tableau résumé Température global
+    mean_temp = group_temp.groupby(['Site', 'tranche_temp'], observed=False)['Ca_ht'].mean().reset_index().round()
     mean_temp.columns = ['Site', 'Catégorie temp', 'Chiffre d\'affaire moyen']
     st.subheader('**Chiffre d\'affaire moyen - Température**', text_alignment='center')
     st.dataframe(mean_temp, hide_index=True)
 
     "---"  ### ------ Corrélation PLUIE vs CA ----- ###
 
-    # --- Graphique de corrélation --- 
-    st.subheader('Corrélation Pluie vs Chiffre d\'affaire', text_alignment='center')
+    st.subheader("Corrélation Pluie vs Chiffre d'affaire", text_alignment='center')
 
     col_pluie_1, col_pluie_2 = st.columns(2)
-    
-    with col_pluie_1 :
-        fig_pluie =px.scatter(
-            df_filtrer,
+
+    with col_pluie_1:
+        # Nuage de points pluie global
+        fig_pluie = px.scatter(
+            df_site_global,
             x='Pluie_mm',
             y='Ca_ht',
             size='Nb_de_cvts',
             color='Site',
             trendline='ols',
             template='simple_white',
-            labels={'Pluie_mm' : '<b>Pluviométrie en mm</b>', "Ca_ht" : "<b>Chiffre d'affaire (€)</b>", "Nb_de_cvts" : '<b>Nombre de couverts</b>',  'Site' : "<b>Point de vente</b>"}    
-
+            labels={'Pluie_mm': '<b>Pluviométrie en mm</b>', "Ca_ht": "<b>Chiffre d'affaire (€)</b>", "Nb_de_cvts": '<b>Nombre de couverts</b>', 'Site': "<b>Site</b>"}    
         )
         st.plotly_chart(fig_pluie, use_container_width=True)
-    
+
     with col_pluie_2:
+        ## --- Graphique bar de Pluie global
+        group_pluie = df_site_global.copy()
 
-        ## --- Graphique bar de Pluie
-        group_pluie = df_ventes.query("année > 2024 and Site == @site").copy()
-
-        bins = [-float('inf'), 10, 20, 30, float('inf')]
-        labels = ['0-10 mm', '11-20 mm', '21-30 mm', '+ 31 mm']
+        bins_pluie = [-float('inf'), 10, 20, 30, float('inf')]
+        labels_pluie = ['0-10 mm', '11-20 mm', '21-30 mm', '+ 31 mm']
 
         group_pluie['tranche_pluie'] = pd.cut(
-            group_temp['Pluie_mm'], 
-            bins=bins, 
-            labels=labels,
-            right=True)
+            group_pluie['Pluie_mm'], 
+            bins=bins_pluie, 
+            labels=labels_pluie,
+            right=True
+        )
 
-        pluie = group_pluie.groupby(['Site','tranche_pluie'])['Ca_ht'].sum().reset_index()
+        pluie = group_pluie.groupby(['Site', 'tranche_pluie'], observed=False)['Ca_ht'].sum().reset_index()
 
         fig_pluie1 = px.bar(
             pluie,
@@ -490,20 +535,18 @@ with tab2: ## VUE PAR SITE
             color='Site',
             text_auto='.2s',
             template='simple_white',
-            labels={'Ca_ht':'<b>Chiffre d\'affaire (€)</b>', 'tranche_pluie':'<b>Catégorie de pluie</b>',  'Site' : "<b>Point de vente</b>"},
-            range_y=[0,pluie['Ca_ht'].max() * 1.5]
+            labels={'Ca_ht': '<b>Chiffre d\'affaire (€)</b>', 'tranche_pluie': '<b>Catégorie de pluie</b>', 'Site': "<b>Site</b>"},
+            range_y=[0, pluie['Ca_ht'].max() * 1.3 if not pluie.empty else 100]
         )
-
         fig_pluie1.update_traces(
-            textposition = 'outside',
-            texttemplate = '<b>%{value:.3s}€</b>'
+            textposition='outside',
+            texttemplate='<b>%{value:.3s}€</b>'
         )
-
         st.plotly_chart(fig_pluie1, use_container_width=True)
 
-    ### ---- Tableau des moyenne 
-    mean_pluie = group_pluie.groupby(['Site','tranche_pluie'])['Ca_ht'].mean().reset_index().round()
-    mean_pluie.columns = ['Site', 'Catégorie pluie', 'Chiffre d\'affaire moyen']
+        ### ---- Tableau résumé Pluie global
+        mean_pluie = group_pluie.groupby(['Site', 'tranche_pluie'], observed=False)['Ca_ht'].mean().reset_index().round()
+        mean_pluie.columns = ['Site', 'Catégorie pluie', 'Chiffre d\'affaire moyen']
     st.subheader('**Chiffre d\'affaire moyen - Pluie**', text_alignment='center')
     st.dataframe(mean_pluie, hide_index=True)
 with tab3: ## VUE COMPTE FOURNISSEUR 
@@ -572,13 +615,13 @@ with tab3: ## VUE COMPTE FOURNISSEUR
     st.header('Détail par compte', divider='blue')
     cols = st.columns(2)
     with cols[0]:
-        sel_fournisseur = st.selectbox('**Quels fournisseurs ?**', options=compte_fournisseur['Fournisseur'].unique())
+        sel_fournisseur = st.selectbox('**Quels fournisseurs ?**', options=sorted(compte_fournisseur['Fournisseur'].unique()))
     with cols[1]:
         solde_compte = compte_fournisseur.query('Fournisseur == @sel_fournisseur')['Solde HT'].sum()
         st.metric('**Solde**', value=f'{solde_compte:,.0f} €')
     
     df_res = compte_fournisseur.query('Fournisseur == @sel_fournisseur').drop(columns='Taille_Treemap')
-    st.dataframe(df_res, hide_index=True) 
+    st.dataframe(df_res, hide_index=True)   
 with tab4: ## VUE SUIVIT DU CASH
     ##### ------- SUIVIT ESPCES ----- 
 
@@ -717,164 +760,6 @@ with tab5: ## VUE MASSE SALARIALE
     )
     st.subheader('**Vue à la semaine**', divider='blue')
     st.plotly_chart(fig_rh, use_container_width=True)
-with tab6: ## VUE AUDIT DES DONNÉES 
-    st.subheader("Audit des données Caisse et Events", divider='blue')
-    
-    # 1. Copies propres
-    df_audit_event = df_events.query("année == 2025").copy()
-    df_audit_caisse = df_caisse.copy()
-
-    # 2. Harmonisation des dates (on s'assure que c'est du datetime pur avant le .date)
-    df_audit_event['Date'] = pd.to_datetime(df_audit_event['Date'], errors='coerce').dt.date
-    df_audit_caisse['Date'] = pd.to_datetime(df_audit_caisse['Date'], errors='coerce').dt.date
-
-    # 3. Consolidation
-    df_historique = pd.concat([df_audit_caisse, df_audit_event], ignore_index=True)
-    
-    # On supprime 'Client' s'il existe pour ne pas gêner le groupby numérique
-    if 'Client' in df_historique.columns:
-        df_historique = df_historique.drop(columns='Client')
-
-    # 4. NETTOYAGE DE SÉCURITÉ (Anti-TypeError)
-    # On force toutes les colonnes de calcul en numérique
-    cols_calcul = [
-        'Ca_ttc', 'Virement', 'Cb', 'Espece', 'Cheque', 'Autres', 'Tips', 
-        'Taxes_20', 'Taxes_10', 'Taxes_5.5', 'Ca_ht', 'Nb_de_cvts', 
-        'Food_ht', 'Bev_ht', 'Privatisation_ht', 'Autre_ht'
-    ]
-
-    for col in cols_calcul:
-        if col in df_historique.columns:
-            # On force la conversion : tout ce qui n'est pas un nombre devient NaN, puis 0
-            df_historique[col] = pd.to_numeric(df_historique[col], errors='coerce').fillna(0)
-
-    # 5. GROUPBY SÉCURISÉ
-    # On ne demande l'agrégation que pour les colonnes qui existent vraiment dans df_historique
-    dict_agg_final = {c: 'sum' for c in cols_calcul if c in df_historique.columns}
-
-    if not df_historique.empty:
-        df_audit_master = (df_historique.groupby(['Date', 'Site'])
-                    .agg(dict_agg_final)
-                    .round()
-                    .reset_index())
-        
-        # Tri par date décroissante pour voir le plus récent
-        df_audit_master = df_audit_master.sort_values('Date', ascending=False)
-        
-       # On crée l'expander avec le titre dynamique (le nombre de lignes)
-        with st.expander(f"🔍 Détail de l'audit ({len(df_audit_master)} lignes combinées)", expanded=False):
-            st.write("Voici les données brutes après fusion des sources :")
-            st.dataframe(df_audit_master, hide_index=True, use_container_width=True)
-    else:
-        st.warning("Aucune donnée à auditer.")
-    
-    st.subheader('Ligne à ajouter à la Master Data', divider='blue')
-
-    audit_ventes = df_ventes.copy()
-    audit_ventes['Date'] = pd.to_datetime(audit_ventes['Date']).dt.date
-    date_max = audit_ventes['Date'].max()
-    data_ajouter = df_audit_master.query('Date > @date_max')
-
-    st.dataframe(data_ajouter, hide_index=True)    
-with tab7: ## VUE STOCK
-    st.header('**En cours de création**')
-#     st.header('**Suivi du stock**', divider = 'blue', text_alignment='center')
-
-#     ## --- IMPORTATION DES DONNÉES ET MISE EN FORME ---
-#     df_stock['Date_heure'] = pd.to_datetime(df_stock['Date_heure'], dayfirst=True)
-#     df_stock = df_stock.assign(
-#         année = df_stock['Date_heure'].dt.year,
-#         mois = df_stock['Date_heure'].dt.month,
-#         iso_semaine = df_stock['Date_heure'].dt.isocalendar().week
-#     )
-#     df_stock.columns = df_stock.columns.str.strip()
-
-#     ### ----- VARIABLE DES KPI ---- 
-    
-#     achat = df_facture.query('Catégorie == ("Food", "Boissons")')['Montant_ht'].sum()
-#     achat_food = df_facture.query('Catégorie == ("Food")')['Montant_ht'].sum()
-#     achat_bev = df_facture.query('Catégorie == ("Boissons")')['Montant_ht'].sum()
-
-#     consommer = df_stock.query('`Type de mouvement` == ("Sortie")')['Total'].sum()
-#     sortie_food = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Food")')['Total'].sum()
-#     sortie_bev = df_stock.query('`Type de mouvement` == ("Sortie") and Departement == ("Boisson")')['Total'].sum()
-    
-#     stock_delta = achat - consommer
-#     stock_delta_food = achat_food - sortie_food
-#     stock_delta_bev = achat_bev - sortie_bev
-
-#     ### --- AFFICHAGE DES INDICATEURS STREAMLIT ----
-
-#     st.subheader('**Stock en cours**', divider='red')
-#     cols = st.columns(3)
-#     cols[0].metric('**Stock en cours HT**', value=f'{stock_delta:,.0f} €'.replace(',', ' '))
-#     cols[1].metric('**Stock en cours - Food HT**', value=f'{stock_delta_food:,.0f} €'.replace(',',' '))
-#     cols[2].metric('**Stock en cours - Bev HT**', value=f'{stock_delta_bev:,.0f} €'.replace(',',' '))
-#     st.subheader('**Total des achats HT**', divider='red')
-#     cols = st.columns(3)
-#     cols[0].metric('**Total des achats HT**', value=f'{achat:,.0f} €'.replace(',', ' '))
-#     cols[1].metric('**Total achat - Food HT**', value=f'{achat_food:,.0f} €'.replace(',',' '))
-#     cols[2].metric('**Total achat - Bev HT**', value=f'{achat_bev:,.0f} €'.replace(',',' '))
-#     st.subheader('**Total des sorties de stock HT**', divider='red')
-#     cols = st.columns(3)
-#     cols[0].metric('**Total sortie HT**', value=f'{consommer:,.0f} €'.replace(',', ' '))
-#     cols[1].metric('**Total sortie - Food HT**', value=f'{sortie_food:,.0f} €'.replace(',',' '))
-#     cols[2].metric('**Total sortie - Bev HT**', value=f'{sortie_bev:,.0f} €'.replace(',',' '))
-
-#     ### --- APPLICATION DES FILTRES PAR POINT DE VENTE --- 
-#     st.subheader('**Food & Bev - COGS**', divider='red')
-#     cols = st.columns(3)
-#     with cols[0]:
-#         cogs_site = st.pills('**Quels sites ?**', options=df_ventes['Site'].unique())
-#         ## ---- CALCUL DU FOOD ET BEV COGS -----
-#         ca_cogs = df_ventes.query('année == @année_n and Site == @cogs_site')['Ca_ht'].sum()
-#         food_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Food")')['Total'].sum() /
-#                      ca_cogs
-#         )
-#         food_cogs_cible = 35
-#         bev_cost = (df_stock.query('Destination == @cogs_site and Departement == ("Boisson")')['Total'].sum() /
-#                      ca_cogs
-#         )
-#         bev_cost_cible = 25
-
-#     with cols[1]:
-#         st.metric('**Food COGS**', value=f'{food_cost:.2%}', delta=f'{food_cost - food_cogs_cible:,.2f}', delta_color='inverse')
-#     with cols[2]:
-#         st.metric('**Bev COGS**', value=f'{bev_cost:.2%}', delta=f'{bev_cost - bev_cost_cible:,.2f}', delta_color='inverse')
-with tab8: ## PRÉVISION PROPHET 7 JOURS
-    st.header("🔮 Prévisions d'Exploitation (7 jours)", divider='blue')
-
-    sites_dispo = df_caisse['Site'].unique()
-    sel_site = st.pills("Choisir le point de vente", options=sites_dispo, default='Restaurant')
-
-    if st.button(f"🚀 Lancer l'IA pour {sel_site}"):
-        with st.spinner("Analyse des cycles et synchronisation météo..."):
-            
-            # 1. Entraînement du modèle (utilise l'historique météo de df_caisse)
-            model, mae, mape = train_and_eval_prophet(df_caisse, sel_site)
-
-            if model is None:
-                st.warning("Historique insuffisant pour ce site.")
-            else:
-                # 3. Préparation du dataframe 'future'
-                future = model.make_future_dataframe(periods=7)
-                
-                # 4. Prédiction de 7 jours
-                forecast = model.predict(future)
-                
-                # --- AFFICHAGE ---
-                col1, col2, col3 = st.columns(3)
-                fiabilite = max(0, 100 - (mape * 100))
-                
-                col1.metric("Fiabilité Score", f"{fiabilite:.1f} %", help="Basé sur l'erreur MAPE")
-                col2.metric("Marge d'erreur (MAE)", f"{mae:.0f} €", help="Écart moyen par jour")
-                col3.metric("CA Estimé (7j)", f"{forecast.tail(7)['yhat'].sum():,.0f} €".replace(",", " "))
-
-                # Graphique
-                from prophet.plot import plot_plotly
-                fig = plot_plotly(model, forecast)
-                fig.update_layout(template="plotly_dark", title=f"Tendance 7 jours (incluant météo) : {sel_site}")
-                st.plotly_chart(fig, use_container_width=True)
 with tab9: ## ARCHIVES 
     with st.expander('**Historique Master Data**'):
         df_ventes['Date'] = df_ventes['Date'].dt.date
