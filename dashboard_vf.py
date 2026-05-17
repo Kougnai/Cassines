@@ -396,7 +396,7 @@ with tab2: ## VUE PAR SITE
     # Chiffre d'affaires comparé à date
     col1.metric("**Chiffre d'affaire HT**", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='**vs N-1 à date**')
     # Masse salariale
-    col2.metric('**Masse salariale / chargée**', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
+    col2.metric('**Masse salariale / chargée**', f'{ms_c:.0%}', delta=f'{delta_msc:.0%}', delta_color='normal')
     # COGS Statiques (en attendant dynamisation)
     col3.metric('**Food COGS**', value='32%', delta='4%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
     col4.metric('**Bev COGS**', value='27%', delta='2%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
@@ -409,8 +409,8 @@ with tab2: ## VUE PAR SITE
     # Ticket moyen comparé à date
     b.metric('**Ticket moyen**', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='**vs N-1 à date**')
     # Répartition CA
-    c.metric("**CA Food HT**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
-    d.metric("**CA Bev HT**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    c.metric("**CA Food TTC**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    d.metric("**CA Bev TTC**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
 
    # --- PRÉPARATION DES DONNÉES GLOBALES POUR LES GRAPHES (SANS FILTRE À DATE) ---
 
