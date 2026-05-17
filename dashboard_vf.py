@@ -194,8 +194,8 @@ with tab1: ## VUE GLOBALE
     # Ligne 1
     cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 à date")
     colb.metric('MS/C', value=f'{ms_c_année_n:.2%}', delta=f'{delta_msc_c:.2%}', delta_color='inverse')
-    colc.metric('Food HT', value=fmt_euro(food_ca_année_n), delta=f'{food_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
-    cold.metric('Bev HT', value=fmt_euro(bev_ca_année_n), delta=f'{bev_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+    colc.metric('Food TTC', value=fmt_euro(food_ca_année_n), delta=f'{food_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+    cold.metric('Bev TTC', value=fmt_euro(bev_ca_année_n), delta=f'{bev_cogs:.2%}', delta_color='off', delta_arrow='off', delta_description="du CA")
 
     # Ligne 2
     cola.metric('Nombre de couvert', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 à date")
