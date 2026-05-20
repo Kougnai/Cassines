@@ -129,6 +129,7 @@ df_ventes = add_weather_data(df_ventes)
 tab1, tab2, tab3, tab4, tab5, tab9 = st.tabs(["🌍 Vue globale", "📍 Vue par site", "📄 Compte Fournisseur", "💶 Cash",'👨‍🍳 Masse salariale','📚 Archives'] )
 
 with tab1: ## VUE GLOBALE 
+
     ### Analyse globale  KPI
 
     # --- CALCULS KPIs ---
@@ -142,19 +143,18 @@ with tab1: ## VUE GLOBALE
         jour_semaine=df_ventes['Date'].dt.day_of_week,
     )
 
-    # --- DATES & FILTRES ---
+    # --- DATES & FILTRES (MODIFIÉ POUR SEMAINE ISO) ---
     année_n = df_ventes['année'].max()
     année_n_1 = année_n - 1
 
-    # Trouver le dernier jour enregistré en année N
-    dernier_jour_n = df_ventes.query('année == @année_n')['jour_année'].max()
+    # Trouver la dernière semaine ISO enregistrée en année N
     dernier_semaine_n = df_ventes.query('année == @année_n')['iso_semaine'].max()
 
     # Données Année N
     df_année_n = df_ventes.query('année == @année_n').copy()
 
-    # Données Année N-1 filtrées À DATE (YTD)
-    df_année_n_1_ytd = df_ventes.query('année == @année_n_1 & jour_année <= @dernier_jour_n')
+    # Données Année N-1 filtrées à la SEMAINE ISO
+    df_année_n_1_ytd = df_ventes.query('année == @année_n_1 & iso_semaine <= @dernier_semaine_n')
 
     # --- CALCULS DES METRICS ---
     # Chiffre d'affaires
@@ -192,14 +192,14 @@ with tab1: ## VUE GLOBALE
     cola, colb, colc, cold = st.columns(4)
 
     # Ligne 1
-    cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 à date")
+    cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 à la sem. ISO")
     colb.metric('MS/C', value=f'{ms_c_année_n:.0%}', delta=f'{delta_msc_c:.0%}', delta_color='inverse')
-    colc.metric('Food TTC', value=fmt_euro(food_ca_année_n), delta=f'{food_cogs:.0%}', delta_color='off', delta_arrow='off', delta_description="du CA")
-    cold.metric('Bev TTC', value=fmt_euro(bev_ca_année_n), delta=f'{bev_cogs:.0%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+    colc.metric('Food HT', value=fmt_euro(food_ca_année_n), delta=f'{food_cogs:.0%}', delta_color='off', delta_arrow='off', delta_description="du CA")
+    cold.metric('Bev HT', value=fmt_euro(bev_ca_année_n), delta=f'{bev_cogs:.0%}', delta_color='off', delta_arrow='off', delta_description="du CA")
 
     # Ligne 2
-    cola.metric('Nombre de couvert', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 à date")
-    colb.metric('Ticket moyen', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen))
+    cola.metric('Nombre de couvert', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 à la sem. ISO")
+    colb.metric('Ticket moyen', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description="VS N-1 à la sem. ISO")
     colc.metric('Food COGS', value='32%', delta='4%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
     cold.metric('Bev COGS', value='27%', delta='2%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
 
@@ -242,7 +242,7 @@ with tab1: ## VUE GLOBALE
             y=[ca_max],
             mode='markers+text',
             name='Record Historique',
-            text=[f"🏆 Record : {ca_max:,.0f} €".replace(',', ' ')],
+            text=[f" Record : {ca_max:,.0f} €".replace(',', ' ')],
             textposition="top center",
             marker=dict(color='gold', size=12, symbol='star'),
             showlegend=False
@@ -319,39 +319,41 @@ with tab1: ## VUE GLOBALE
 
     ### --- AFICHAGE DE LA BASE DE DONNÉES DU FICHIER EVENEMENT 
     st.subheader('**Base de données - Évenement**', text_alignment='center', divider='blue')
-    with st.expander('📑 Cliquer pour afficher la base de donnée') :
+    with st.expander(' Cliquer pour afficher la base de donnée') :
             st.dataframe(df_events, hide_index=True)
+            
 with tab2: ## VUE PAR SITE 
         
    # --- FILTRE DYNAMIQUE DES SITES ---
     pv = df_ventes['Site'].unique()
 
     st.header('Quels sites ?', text_alignment='center')
+   
     aa, ab, ac = st.columns(3)
     with ab:
         # Changement du défaut pour être robuste si 'Guinguette' n'est pas présent
         default_site = 'Guinguette' if 'Guinguette' in pv else pv[0]
         site = st.pills('', options=pv, default=default_site, width=500)
 
-    # --- PRÉPARATION DES DONNÉES DYNAMIQUES & À DATE ---
+    # --- PRÉPARATION DES DONNÉES DYNAMIQUES & À LA SEMAINE ISO ---
     année_n = df_ventes['année'].max()
     année_n_1 = année_n - 1
 
-    # Trouver le dernier jour enregistré pour CE SITE en année N
-    dernier_jour_n_site = df_ventes.query('année == @année_n & Site == @site')['jour_année'].max()
+    # Trouver la dernière semaine ISO enregistrée pour CE SITE en année N
+    dernier_semaine_n_site = df_ventes.query('année == @année_n & Site == @site')['iso_semaine'].max()
 
     # Si le site n'a pas encore de ventes en année N, on évite un plantage
-    if pd.isna(dernier_jour_n_site):
-        dernier_jour_n_site = df_ventes['jour_année'].max()
+    if pd.isna(dernier_semaine_n_site):
+        dernier_semaine_n_site = df_ventes['iso_semaine'].max()
 
     # Données Année N pour le site
     df_site_n = df_ventes.query('année == @année_n & Site == @site').copy()
 
-    # Données Année N-1 pour le site filtrées À DATE (YTD)
-    df_site_n_1_ytd = df_ventes.query('année == @année_n_1 & Site == @site & jour_année <= @dernier_jour_n_site')
+    # Données Année N-1 pour le site filtrées à la SEMAINE ISO
+    df_site_n_1_ytd = df_ventes.query('année == @année_n_1 & Site == @site & iso_semaine <= @dernier_semaine_n_site')
 
     # --- CALCULS DES METRICS ---
-    # Chiffre d'affaires (Courant vs YTD)
+    # Chiffre d'affaires (Courant vs Semaine ISO)
     ca_site_n = df_site_n['Ca_ht'].sum()
     ca_site_n_1_ytd = df_site_n_1_ytd['Ca_ht'].sum()
     delta_ca_site = ca_site_n - ca_site_n_1_ytd
@@ -362,7 +364,7 @@ with tab2: ## VUE PAR SITE
     ms_c = ms_c_montant / ca_site_n if ca_site_n else 0
     valeur_cible_msc = 0.35
     # Inversion pour le delta (si ms_c < cible = positif/vert)
-    delta_msc = valeur_cible_msc - ms_c  
+    delta_msc = valeur_cible_msc - ms_c
 
     # Couverts & Ticket Moyen
     nb_cvt_n = df_site_n['Nb_de_cvts'].sum()
@@ -380,7 +382,7 @@ with tab2: ## VUE PAR SITE
     bev_ca = df_site_n['Bev_ht'].sum()
     bev_cogs = bev_ca / ca_site_n if ca_site_n else 0
 
-    "---" 
+    "---"
 
     # --- AFFICHAGE STREAMLIT ---
     st.header(f'KPI : {site}', text_alignment='center')
@@ -393,10 +395,10 @@ with tab2: ## VUE PAR SITE
     ## ----- PARTIE 1/2 DES KPI ----
     col1, col2, col3, col4 = st.columns(4)
 
-    # Chiffre d'affaires comparé à date
-    col1.metric("**Chiffre d'affaire HT**", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='**vs N-1 à date**')
+    # Chiffre d'affaires comparé à la semaine ISO
+    col1.metric("**Chiffre d'affaire HT**", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='**vs N-1 à la sem. ISO**')
     # Masse salariale
-    col2.metric('**Masse salariale / chargée**', f'{ms_c:.0%}', delta=f'{delta_msc:.0%}', delta_color='normal')
+    col2.metric('**Masse salariale / chargée**', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
     # COGS Statiques (en attendant dynamisation)
     col3.metric('**Food COGS**', value='32%', delta='4%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
     col4.metric('**Bev COGS**', value='27%', delta='2%', delta_arrow='up', delta_color='inverse', delta_description='Statique')
@@ -404,13 +406,13 @@ with tab2: ## VUE PAR SITE
     ## ---- PARTIE 2/2 DES KPI ----
     a, b, c, d = st.columns(4)
 
-    # Nombre de couverts comparé à date
-    a.metric('**Nb de couverts**', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='**vs N-1 à date**')
-    # Ticket moyen comparé à date
-    b.metric('**Ticket moyen**', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='**vs N-1 à date**')
+    # Nombre de couverts comparé à la semaine ISO
+    a.metric('**Nb de couverts**', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='**vs N-1 à la sem. ISO**')
+    # Ticket moyen comparé à la semaine ISO
+    b.metric('**Ticket moyen**', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='**vs N-1 à la sem. ISO**')
     # Répartition CA
-    c.metric("**CA Food TTC**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
-    d.metric("**CA Bev TTC**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    c.metric("**CA Food HT**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    d.metric("**CA Bev HT**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
 
    # --- PRÉPARATION DES DONNÉES GLOBALES POUR LES GRAPHES (SANS FILTRE À DATE) ---
 
@@ -537,7 +539,7 @@ with tab2: ## VUE PAR SITE
             template='simple_white',
             labels={'Ca_ht': '<b>Chiffre d\'affaire (€)</b>', 'tranche_pluie': '<b>Catégorie de pluie</b>', 'Site': "<b>Site</b>"},
             range_y=[0, pluie['Ca_ht'].max() * 1.3 if not pluie.empty else 100]
-        )
+       )
         fig_pluie1.update_traces(
             textposition='outside',
             texttemplate='<b>%{value:.3s}€</b>'
@@ -549,6 +551,7 @@ with tab2: ## VUE PAR SITE
         mean_pluie.columns = ['Site', 'Catégorie pluie', 'Chiffre d\'affaire moyen']
     st.subheader('**Chiffre d\'affaire moyen - Pluie**', text_alignment='center')
     st.dataframe(mean_pluie, hide_index=True)
+
 with tab3: ## VUE COMPTE FOURNISSEUR 
     # --- Consolidation ---
     df_bl['Mois'] = df_bl['Date'].dt.strftime('%Y-%m')
