@@ -218,7 +218,7 @@ with tab1:
             st.success(f"🍏 Objectif mensuel global dépassé de **{fmt_euro(ecart_bp)}** !")
     with col_sem:
         if ecart_bp_hebdo < 0:
-            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_hebdo))}** à réaliser pour atteindre l'objectif mensuel")
+            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_hebdo))}** à réaliser pour atteindre l'objectif hebdomadaire")
         else:
             st.success(f"🍏 Objectif hebdomadaire dépassé de **{fmt_euro(ecart_bp_hebdo)}** !")
 
