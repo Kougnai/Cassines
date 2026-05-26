@@ -213,14 +213,14 @@ with tab1:
     col_mois, col_sem = st.columns(2)
     with col_mois:
         if ecart_bp < 0:
-            st.warning(f"🔴 Il reste à réaliser **{fmt_euro(abs(ecart_bp))}** pour atteindre l'objectif mensuel global.")
+            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp))}** à réaliser pour atteindre l'objectif mensuel")
         else:
             st.success(f"🍏 Objectif mensuel global dépassé de **{fmt_euro(ecart_bp)}** !")
     with col_sem:
         if ecart_bp_hebdo < 0:
-            st.warning(f"🔴 Écart de **{fmt_euro(abs(ecart_bp_hebdo))}** par rapport au rythme hebdomadaire global.")
+            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_hebdo))}** à réaliser pour atteindre l'objectif mensuel")
         else:
-            st.success(f"🍏 Rythme hebdomadaire global en avance de **{fmt_euro(ecart_bp_hebdo)}** !")
+            st.success(f"🍏 Objectif hebdomadaire dépassé de **{fmt_euro(ecart_bp_hebdo)}** !")
 
     st.subheader('Évolution du Chiffre d\'affaire YoY', text_alignment='center', divider='blue')
     cols = st.columns(3)
@@ -357,14 +357,14 @@ with tab2:
     col_sm_site, col_sh_site = st.columns(2)
     with col_sm_site:
         if ecart_bp_site_mensuel < 0:
-            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_site_mensuel))}** de CA HT à générer pour atteindre le BP mensuel de ce site.")
+            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_site_mensuel))}** de CA HT pour atteindre l'objectif mensuel")
         else:
-            st.success(f"🍏 Objectif mensuel dépassé de **{fmt_euro(ecart_bp_site_mensuel)}** sur ce site !")
+            st.success(f"🍏 Objectif mensuel dépassé de **{fmt_euro(ecart_bp_site_mensuel)}** WELL DONE !")
     with col_sh_site:
         if ecart_bp_site_hebdo < 0:
-            st.warning(f"🔴 Ce site est en retard de **{fmt_euro(abs(ecart_bp_site_hebdo))}** en moyenne par semaine par rapport à son rythme cible.")
+            st.warning(f"🔴 Il reste **{fmt_euro(abs(ecart_bp_site_hebdo))}** pour atteindre l'objectif hebdomadaire")
         else:
-            st.success(f"🍏 Rythme hebdomadaire en avance de **{fmt_euro(ecart_bp_site_hebdo)}** !")
+            st.success(f"🍏 En avance de **{fmt_euro(ecart_bp_site_hebdo)}** au prévisionnel mensuel!")
 
     df_site_global = df_ventes.query("Site == @nom_filtre_df").copy()
     var_pv = df_site_global.query("année in [@année_n, @année_n_1]").groupby(['année', 'mois'])['Ca_ht'].sum().reset_index()
