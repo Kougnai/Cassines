@@ -348,8 +348,8 @@ with tab2:
     a, b, c, d = st.columns(4)
     a.metric('**Nb de couverts**', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='**vs N-1 à la sem. ISO**')
     b.metric('**Ticket moyen**', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='**vs N-1 à la sem. ISO**')
-    c.metric("**CA Food HT**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
-    d.metric("**CA Bev HT**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    c.metric("**CA Food TTC**", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
+    d.metric("**CA Bev TTC**", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='**Du CA du site**')
 
     # Bloc d'avancement par site
     st.write("")
