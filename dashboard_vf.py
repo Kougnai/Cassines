@@ -245,7 +245,7 @@ with tab1:
     df_events['année'] = df_events['Date'].dt.year
     var = df_events.query('année == @année_n').groupby('Site')['Ca_ht'].sum().round().reset_index().sort_values('Ca_ht', ascending=False)
     ca_events = var['Ca_ht'].sum()
-    ca_events_privat = df_events.query("année == @année_n and Ca_ht > 6000")['Ca_ht'].sum()
+    ca_events_privat = df_events.query("année == @année_n and Privatisation_ht > 6000")['Ca_ht'].sum()
     ca_event_exploitation = df_events.query("année == @année_n and Ca_ht < 6000")['Ca_ht'].sum()
     pct_privatision = 1 - (ca_events_privat / ca_events) if ca_events else 0
     pct_exploitation = 1 - (ca_event_exploitation / ca_events) if ca_events else 0
