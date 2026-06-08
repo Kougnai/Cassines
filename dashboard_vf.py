@@ -337,8 +337,8 @@ with tab2:
     a, b, c, d = st.columns(4)
     a.metric('Couverts (YTD)', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='vs N-1 ISO')
     b.metric('Ticket Moyen (YTD)', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='vs N-1 ISO')
-    c.metric("Part CA Food HT", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
-    d.metric("Part CA Bev HT", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
+    c.metric("Part CA Food TTC", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
+    d.metric("Part CA Bev TTC", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
 
     st.write("")
     with st.container(border=True):
