@@ -585,7 +585,7 @@ with tab4:
     with cols[2]: st.metric('Solde Théorique Coffre', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
 
     st.subheader('Historique des dépôt de cash', divider = 'blue')
-    with st.expander('**Historique des Dépôts**')
+    with st.expander('**Historique des Dépôts**'):
         st.dataframe(df_cash_visuel, hide_index=True, use_container_width=True)
 
     st.subheader('Audit de Cohérence (Enveloppes vs Caisse)', divider='blue')
