@@ -478,7 +478,7 @@ with tab2:
 # ==========================================
 with tab_donnees:
     st.header(" Exploration et Recherche de Données", divider='blue')
-    st.write("Filtrez les ventes précisément par dates et points de vente pour un contrôle ciblé.")
+    st.write("Filtrez les ventes par dates et points de vente")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
@@ -579,13 +579,14 @@ with tab4:
     df_cash_visuel = df_cash_visuel[['Date dépôt', 'Montant','Numero_ticket']]
 
     st.header('Suivi Flux Espèces', divider='blue')
-    cols = st.columns(4)
+    cols = st.columns(3)
     with cols[0]: st.metric('CA global TTC — Espèces', value=f'{recette:,.0f} €'.replace(',', ' '))
     with cols[1]: st.metric('Total Espèces Déposées', value=f'{depot:,.0f} €'.replace(',', ' '))
     with cols[2]: st.metric('Solde Théorique Coffre', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
-    with cols[3]:
-        st.write('**Historique des Dépôts**')
-        st.dataframe(df_cash_visuel, hide_index=True)
+
+    st.subheader('Historique des dépôt de cash', divider = 'blue')
+    with st.expander('**Historique des Dépôts**')
+        st.dataframe(df_cash_visuel, hide_index=True, use_container_width=True)
 
     st.subheader('Audit de Cohérence (Enveloppes vs Caisse)', divider='blue')
     audit_cash_caisse = df_caisse[['Date', 'Site', 'Espece']].copy()
