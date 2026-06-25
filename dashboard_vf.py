@@ -77,6 +77,8 @@ def get_data():
 
 @st.cache_data
 def add_weather_data(df):
+    if df.empty or 'Date' not in df.columns:
+        return df
     lat, lon = 45.84, 6.21 # Talloires-Montmin
     start = df['Date'].min().strftime('%Y-%m-%d')
     end = df['Date'].max().strftime('%Y-%m-%d')
@@ -90,7 +92,6 @@ def add_weather_data(df):
 
 @st.cache_data(ttl=3600)
 def get_weather_forecast():
-    """Récupère les prévisions météo à 7 jours pour Talloires-Montmin (74290)"""
     lat, lon = 45.84, 6.21 
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,precipitation_sum&timezone=Europe%2FParis"
     try:
@@ -116,7 +117,8 @@ onglets_list = [df_cash, df_caisse, df_events, df_rh, df_ventes, df_bl, df_factu
 col_num = ['Ca_ttc', 'Taxes_20', 'Taxes_10', 'Taxes_5.5', 'Ca_ht', 'Cb', 'Espece', 
            'Cheque', 'Autres_ht', 'Privatisation_ht', 'Food_ht', 'Bev_ht',
            'Nb_de_cvts', 'Autres', 'Tips', 'Autre_ht', 'Montant', 'Montant_ht', 
-           'Quantité', 'Prix d\'achat', 'Total', 'Restaurant', 'Guinguette', 'LPB', 'Taxes', 'Montant_ttc']
+           'Quantité', 'Prix d\'achat', 'Total', 'Restaurant', 'Guinguette', 
+           'LPB', 'Taxes', 'Montant_ttc']
 
 for df in onglets_list:
     if 'Date' in df.columns:
@@ -195,16 +197,24 @@ with tab1:
     semaines_ecoulees_mois = max(1, df_année_n.query('mois == @current_mois')['iso_semaine'].nunique())
     ecart_bp_hebdo = (ca_du_mois_en_cours / semaines_ecoulees_mois) - bp_hebdo
 
+    # --- CALCUL DE L'ÉCART BP CUMULÉ GLOBAL ---
+    bp_cumule_global = sum(DATA_BP26[m].get("Total", 0) for m in DATA_BP26 if m <= current_mois)
+    ecart_bp_2026_global = ca_année_n - bp_cumule_global
+
     st.subheader(f'KPI : {année_n} — Semaine : N° {dernier_semaine_n}', divider='blue')
 
+    # Ligne 1 : Objectifs budgétaires et MS/C (4 colonnes)
     cola, colb, colc, cold = st.columns(4)
-    cola.metric("Chiffre d'affaire HT (YTD)", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
-    colb.metric('MS/C Globale', value=f'{ms_c_année_n:.0%}', delta=f'{delta_msc_c:.0%}', delta_color='inverse')
-    colc.metric("Écart BP M-Courant", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"VS ({fmt_euro(bp_global_mensuel)})")
-    cold.metric("Rythme Hebdo M-Courant", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"VS ({fmt_euro(bp_hebdo)})")
+    cola.metric("Écarts BP 2026", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
+    colb.metric("Écart BP M-Courant", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
+    colc.metric("Rythme Hebdo M-Courant", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
+    cold.metric('Ratio MS/C Global', value=f'{ms_c_année_n:.1%}', delta=f'{delta_msc_c:.1%}', delta_color='inverse')
 
-    cola.metric('Nombre de couverts (YTD)', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 ISO")
-    colb.metric('Ticket moyen (YTD)', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description="VS N-1 ISO")
+    # Ligne 2 : Volumes et CA YTD (3 colonnes)
+    a, b, c = st.columns(3)
+    a.metric('Nombre de couverts (YTD)', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 ISO")
+    b.metric('Ticket moyen (YTD)', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description="VS N-1 ISO")
+    c.metric("Chiffre d'affaire HT (YTD)", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
 
     st.write("")
     with st.container(border=True):
@@ -277,6 +287,109 @@ with tab1:
     with st.expander(" Cliquer pour afficher la base de données brute Événements"):
         st.dataframe(df_events, hide_index=True)
 
+    # ==========================================
+    #  GÉNÉRATEUR DE RAPPORT HEBDOMADAIRE AUTOMATIQUE
+    # ==========================================
+    st.subheader(" Rapport Économique Hebdomadaire", divider='blue')
+    
+    if st.button("Générer le rapport de la Semaine N° " + str(dernier_semaine_n)):
+        # --- 1. CALCULS CA ET ÉCARTS SEMAINE EN COURS ---
+        df_sem_n = df_année_n.query('iso_semaine == @dernier_semaine_n')
+        ca_sem_total = df_sem_n['Ca_ht'].sum()
+        
+        ca_sem_rest = df_sem_n.query('Site == "Restaurant"')['Ca_ht'].sum()
+        ca_sem_guin = df_sem_n.query('Site == "Guinguette"')['Ca_ht'].sum()
+        ca_sem_lpb  = df_sem_n.query('Site == "LPB"')['Ca_ht'].sum()
+        
+        # Objectifs hebdomadaires du mois en cours (Mensuel / 4)
+        bp_m_total = DATA_BP26.get(current_mois, {}).get("Total", 0)
+        bp_m_rest  = DATA_BP26.get(current_mois, {}).get("Restaurant", 0)
+        bp_m_guin  = DATA_BP26.get(current_mois, {}).get("Guinguette", 0)
+        bp_m_lpb   = DATA_BP26.get(current_mois, {}).get("Le petit baigneur", 0)
+        
+        bp_h_total = bp_m_total / 4
+        bp_h_rest  = bp_m_rest / 4
+        bp_h_guin  = bp_m_guin / 4
+        bp_h_lpb   = bp_m_lpb / 4
+        
+        # --- 2. OBJECTIFS MENSUELS ET RESTE À FAIRE ---
+        ca_m_total = df_année_n.query('mois == @current_mois')['Ca_ht'].sum()
+        ca_m_rest  = df_année_n.query('mois == @current_mois & Site == "Restaurant"')['Ca_ht'].sum()
+        ca_m_guin  = df_année_n.query('mois == @current_mois & Site == "Guinguette"')['Ca_ht'].sum()
+        ca_m_lpb   = df_année_n.query('mois == @current_mois & Site == "LPB"')['Ca_ht'].sum()
+        
+        raf_total = max(0, bp_m_total - ca_m_total)
+        raf_rest  = max(0, bp_m_rest - ca_m_rest)
+        raf_guin  = max(0, bp_m_guin - ca_m_guin)
+        raf_lpb   = max(0, bp_m_lpb - ca_m_lpb)
+        
+        # --- 3. CHIFFRE D'AFFAIRES YTD VS N-1 ISO ---
+        ca_ytd_rest_n = df_année_n.query('Site == "Restaurant"')['Ca_ht'].sum()
+        ca_ytd_guin_n = df_année_n.query('Site == "Guinguette"')['Ca_ht'].sum()
+        ca_ytd_lpb_n  = df_année_n.query('Site == "LPB"')['Ca_ht'].sum()
+        
+        ca_ytd_rest_n1 = df_année_n_1_ytd.query('Site == "Restaurant"')['Ca_ht'].sum()
+        ca_ytd_guin_n1 = df_année_n_1_ytd.query('Site == "Guinguette"')['Ca_ht'].sum()
+        ca_ytd_lpb_n1  = df_année_n_1_ytd.query('Site == "LPB"')['Ca_ht'].sum()
+        
+        # --- 4. CHIFFRE D'AFFAIRES VS BP ANNUEL CUMULÉ (YTD BY SITE) ---
+        # Calcul du budget cumulé théorique à date basé sur le mois en cours
+        bp_cum_rest = sum(DATA_BP26[m].get("Restaurant", 0) for m in DATA_BP26 if m <= current_mois)
+        bp_cum_guin = sum(DATA_BP26[m].get("Guinguette", 0) for m in DATA_BP26 if m <= current_mois)
+        bp_cum_lpb  = sum(DATA_BP26[m].get("Le petit baigneur", 0) for m in DATA_BP26 if m <= current_mois)
+        
+        ecart_bp_rest = ca_ytd_rest_n - bp_cum_rest
+        ecart_bp_guin = ca_ytd_guin_n - bp_cum_guin
+        ecart_bp_lpb  = ca_ytd_lpb_n - bp_cum_lpb
+        
+        # --- 5. MASSE SALARIALE EN COURS ---
+        ms_c_total = df_rh.query("année == @année_n")['Montant'].sum() / ca_année_n if ca_année_n else 0
+        ms_c_rest  = df_rh.query('année == @année_n & Site == "Restaurant"')['Montant'].sum() / ca_ytd_rest_n if ca_ytd_rest_n else 0
+        ms_c_guin  = df_rh.query('année == @année_n & Site == "Guinguette"')['Montant'].sum() / ca_ytd_guin_n if ca_ytd_guin_n else 0
+        ms_c_lpb   = df_rh.query('année == @année_n & Site == "LPB"')['Montant'].sum() / ca_ytd_lpb_n if ca_ytd_lpb_n else 0
+
+        # --- CONSTRUIRE LE RAPPORT TEXTUEL ---
+        nom_mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"][current_mois - 1]
+        signe = lambda x: "+" if x >= 0 else ""
+        
+        report_text = f"""Point économique 
+
+La Semaine N°{dernier_semaine_n} 
+
+Chiffre d’affaire semaine n° {dernier_semaine_n} :
+\t- TOTAL : {ca_sem_total/1000:.1f}K €  |  {signe(ca_sem_total - bp_h_total)}{(ca_sem_total - bp_h_total)/1000:.1f}k€ vs BP hebdo ({bp_h_total/1000:.1f}k €) 
+\t- Restaurant : {ca_sem_rest/1000:.1f}k € | {signe(ca_sem_rest - bp_h_rest)}{(ca_sem_rest - bp_h_rest)/1000:.1f}k€ vs BP hebdo ({bp_h_rest/1000:.1f}k €) 
+\t- Guinguette : {ca_sem_guin/1000:.1f}K € | {signe(ca_sem_guin - bp_h_guin)}{(ca_sem_guin - bp_h_guin)/1000:.1f}k € vs BP hebdo ({bp_h_guin/1000:.1f}k €)
+\t- LPB : {ca_sem_lpb/1000:.1f}k € | {signe(ca_sem_lpb - bp_h_lpb)}{(ca_sem_lpb - bp_h_lpb)/1000:.1f}K € vs BP hebdo ({bp_h_lpb/1000:.1f}k €)
+
+Objectif mensuel {nom_mois} : 
+\t- Total : {bp_m_total/1000:.0f} k€ | {raf_total/1000:.0f}k € à Faire
+\t- Restaurant : {bp_m_rest/1000:.0f}k € | {raf_rest/1000:.0f}k € à Faire
+\t- Guinguette : {bp_m_guin/1000:.0f}k € | {raf_guin/1000:.0f}k € à Faire 
+\t- LPB : {bp_m_lpb/1000:.0f}k € | {raf_lpb/1000:.0f}k € à Faire 
+
+Chiffre d’affaire YTD ( Année N vs Année N-1 ) 
+\t- TOTAL : {ca_année_n/1000:.0f}k € | {signe(delta_ca)}{delta_ca/1000:.0f}k € vs n-1 
+\t- Restaurant : {ca_ytd_rest_n/1000:.0f}k€ | {signe(ca_ytd_rest_n - ca_ytd_rest_n1)}{(ca_ytd_rest_n - ca_ytd_rest_n1)/1000:.0f}k € vs n-1 
+\t- Guinguette : {ca_ytd_guin_n/1000:.0f}k € | {signe(ca_ytd_guin_n - ca_ytd_guin_n1)}{(ca_ytd_guin_n - ca_ytd_guin_n1)/1000:.0f}k € vs n-1
+\t- LPB : {ca_ytd_lpb_n/1000:.0f}K € | {signe(ca_ytd_lpb_n - ca_ytd_lpb_n1)}{(ca_ytd_lpb_n - ca_ytd_lpb_n1)/1000:.0f}K € vs n-1
+
+Chiffre d’affaire {année_n} vs BP (Cumulé Fin Semaine N°{dernier_semaine_n}) :
+\t- TOTAL : {ca_année_n/1000:.0f}k € | {signe(ecart_bp_2026_global)}{ecart_bp_2026_global/1000:.0f}k € vs BP Global ({bp_cumule_global/1000:.0f}k €)
+\t- Restaurant : {ca_ytd_rest_n/1000:.0f}k € | {signe(ecart_bp_rest)}{ecart_bp_rest/1000:.0f}k € vs BP ({bp_cum_rest/1000:.0f}k €)
+\t- Guinguette : {ca_ytd_guin_n/1000:.0f}k € | {signe(ecart_bp_guin)}{ecart_bp_guin/1000:.0f}k € vs BP ({bp_cum_guin/1000:.0f}k €)
+\t- LPB : {ca_ytd_lpb_n/1000:.0f}k € | {signe(ecart_bp_lpb)}{ecart_bp_lpb/1000:.0f}k € vs BP ({bp_cum_lpb/1000:.0f}k €)
+
+Masse salariale {année_n} en cours : 
+\t- TOTAL : {ms_c_total:.0%}
+\t- Restaurant : {ms_c_rest:.0%}
+\t- Guinguette : {ms_c_guin:.0%}
+\t- LPB : {ms_c_lpb:.0%}"""
+
+        # Zone d'affichage copier-coller
+        st.text_area("📋 Copier le rapport économique :", value=report_text, height=500)
+        st.info("Ce rapport s'actualise dynamiquement en fonction des dernières lignes de vente importées.")
+
 # ==========================================
 #  TAB 2 : VUE PAR SITE & PRÉVISIONS
 # ==========================================
@@ -313,11 +426,6 @@ with tab2:
     ticket_moyen_n = ca_site_n / nb_cvt_n if nb_cvt_n else 0
     delta_ticket_moyen = ticket_moyen_n - (ca_site_n_1_ytd / df_site_n_1_ytd['Nb_de_cvts'].sum() if df_site_n_1_ytd['Nb_de_cvts'].sum() else 0)
 
-    food_ca = df_site_n['Food_ht'].sum()
-    food_cogs = food_ca / ca_site_n if ca_site_n else 0
-    bev_ca = df_site_n['Bev_ht'].sum()
-    bev_cogs = bev_ca / ca_site_n if ca_site_n else 0
-
     ca_site_du_mois = df_site_n.query('mois == @current_mois')['Ca_ht'].sum()
     bp_site_mensuel = DATA_BP26.get(current_mois, {}).get(site_selectionne, 0)
     
@@ -326,19 +434,22 @@ with tab2:
     semaines_ecoulees_site = max(1, df_site_n.query('mois == @current_mois')['iso_semaine'].nunique())
     ecart_bp_site_hebdo = (ca_site_du_mois / semaines_ecoulees_site) - bp_site_hebdo
 
+    # --- CALCUL DE L'ÉCART BP CUMULÉ (MODIFICATION DEMANDÉE) ---
+    bp_cumule_site = sum(DATA_BP26[m].get(site_selectionne, 0) for m in DATA_BP26 if m <= current_mois)
+    ecart_bp_2026 = ca_site_n - bp_cumule_site
+
     st.subheader(f'Performances : {site_selectionne}', divider='blue')
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CA HT Site (YTD)", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='vs N-1 ISO')
-    col2.metric('Ratio MS/C Site', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
-    col3.metric("Écart BP Site M-Courant", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
-    col4.metric("Rythme Hebdo Site", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
+    col1.metric('Écarts BP 2026', fmt_euro(ecart_bp_2026), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_site)})")
+    col2.metric("Écart BP Site M-Courant", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
+    col3.metric("Rythme Hebdo Site", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
+    col4.metric('Ratio MS/C Site', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
 
-    a, b, c, d = st.columns(4)
+    a, b, c = st.columns(3)
     a.metric('Couverts (YTD)', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='vs N-1 ISO')
-    b.metric('Ticket Moyen (YTD)', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='vs N-1 ISO')
-    c.metric("Part CA Food TTC", fmt_euro(food_ca), delta=f'{food_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
-    d.metric("Part CA Bev TTC", fmt_euro(bev_ca), delta=f'{bev_cogs:.0%}', delta_arrow='off', delta_color='off', delta_description='Du CA du site')
+    b.metric('Ticket Moyen (YTD)', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='vs N-1 ISO')  
+    c.metric("CA HT Site (YTD)", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='vs N-1 ISO')
 
     st.write("")
     with st.container(border=True):
@@ -346,12 +457,12 @@ with tab2:
         col_sm_site, col_sh_site = st.columns(2)
         with col_sm_site:
             if ecart_bp_site_mensuel < 0:
-                st.warning(f"Il reste **{fmt_euro(abs(ecart_bp_site_mensuel))}** de CA HT à générer pour atteindre le BP mensuel de ce site.")
+                 st.warning(f"Il reste **{fmt_euro(abs(ecart_bp_site_mensuel))}** de CA HT à générer pour atteindre le BP mensuel de ce site.")
             else:
                 st.success(f"Objectif mensuel dépassé de **{fmt_euro(ecart_bp_site_mensuel)}** sur ce site !")
         with col_sh_site:
             if ecart_bp_site_hebdo < 0:
-                st.warning(f"Ce site est en retard de **{fmt_euro(abs(ecart_bp_site_hebdo))}** en moyenne hebdomadaire sur ce mois.")
+                 st.warning(f"Ce site est en retard de **{fmt_euro(abs(ecart_bp_site_hebdo))}** en moyenne hebdomadaire sur ce mois.")
             else:
                 st.success(f"Rythme hebdomadaire en avance de **{fmt_euro(ecart_bp_site_hebdo)}** sur ce site !")
 
@@ -377,31 +488,37 @@ with tab2:
         template='simple_white', color_discrete_map={'CA N-1': '#808495', 'CA Actuel': '#E63946'},
         labels={'Chiffre d\'affaires': "<b>Chiffre d'affaires HT (€)</b>", 'mois': '<b>Mois</b>'}
     )
-    # AJUSTEMENT 1 : Nettoyage du template texte sans l'espace brisé
     fig_pv.update_traces(texttemplate='<b>%{value:.3s}€</b>', textposition='outside')
     fig_pv.add_scatter(x=chart_data['mois'].astype(str), y=chart_data['Objectif BP'], mode='lines+markers', name='Objectif BP', line=dict(color='gold', width=3, dash='dash'), marker=dict(size=8, symbol='diamond'))
     
-    # AJUSTEMENT 2 : Ajout de la vue de survol unifiée (x unified)
     fig_pv.update_layout(hovermode='x unified')
     st.plotly_chart(clean_chart_layout(fig_pv), use_container_width=True)
 
-    # --- NOUVELLE SECTION : MODÈLE PREDICTIF PROPHET DE LA SEMAINE PROCHAINE ---
+    # --- MODIFICATION DEMANDÉE : MODÈLE PREDICTIF PROPHET SUR DF_CAISSE & VACANCES FRANCAISES ---
     st.subheader(f" Prévision : Estimation du CA restant de la semaine ({site_selectionne})", divider='blue')
     
-    df_prophet = df_site_global[['Date', 'Ca_ht', 'Temp_Max', 'Pluie_mm']].copy().dropna(subset=['Date', 'Ca_ht'])
+    df_caisse_site = df_caisse.query("Site == @nom_filtre_df").copy()
+    
+    # Intégration de la météo sur la caisse
+    df_caisse_site = add_weather_data(df_caisse_site)
+    
+    df_prophet = df_caisse_site[['Date', 'Ca_ht', 'Temp_Max', 'Pluie_mm']].copy().dropna(subset=['Date', 'Ca_ht'])
     df_prophet.columns = ['ds', 'y', 'Temp_Max', 'Pluie_mm']
     df_prophet = df_prophet.sort_values('ds').reset_index(drop=True)
     
     if len(df_prophet) > 14:
-        with st.spinner("Analyse des tendances et récupération des prévisions météo pour Talloires-Montmin (74290)..."):
+        with st.spinner("Analyse des tendances (Caisse) et récupération des prévisions météo pour Talloires-Montmin (74290)..."):
             model = Prophet(yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=False)
+            
+            # AJOUT DES VACANCES / JOURS FÉRIÉS FRANÇAIS
+            model.add_country_holidays(country_name='FR')
+            
             model.add_regressor('Temp_Max')
             model.add_regressor('Pluie_mm')
             model.fit(df_prophet)
             
             df_futur_meteo = get_weather_forecast()
             
-            # AJUSTEMENT 4 : Caler la fin des prévisions au Dimanche en cours (ou prochain dimanche)
             aujourdhui = datetime.date.today()
             jours_restants_dimanche = (6 - aujourdhui.weekday()) % 7
             prochain_dimanche = pd.to_datetime(aujourdhui + datetime.timedelta(days=jours_restants_dimanche))
@@ -411,22 +528,16 @@ with tab2:
                 forecast = model.predict(df_futur_meteo)
                 forecast['yhat'] = forecast['yhat'].clip(lower=0)
                 
-                # AJUSTEMENT 3 : Logique d'ouvertures/fermetures par établissement
                 forecast['num_mois'] = forecast['ds'].dt.month
-                forecast['jour_semaine'] = forecast['ds'].dt.dayofweek  # 0=Lundi, 1=Mardi... 6=Dimanche
+                forecast['jour_semaine'] = forecast['ds'].dt.dayofweek
                 
                 def appliquer_calendrier_saisonnier(row):
                     m = row['num_mois']
                     j = row['jour_semaine']
-                    
-                    # RÈGLE JUIN : Tout fermé Lundi & Mardi
                     if m == 6 and j in [0, 1]:
                         return 0.0
-                    
-                    # RÈGLE JUILLET : Seul le restaurant est fermé Lundi & Mardi
                     if m == 7 and j in [0, 1] and site_selectionne == "Restaurant":
                         return 0.0
-                        
                     return row['yhat']
                 
                 forecast['yhat'] = forecast.apply(appliquer_calendrier_saisonnier, axis=1)
@@ -438,14 +549,15 @@ with tab2:
                     st.metric(
                         label=" Estimation CA Restant (Jusqu'à Dimanche)",
                         value=fmt_euro(ca_total_estime),
-                        delta="Ajusté selon Calendrier de Site",
+                        delta="Basé sur Flux Caisse + Vacances FR",
                         delta_color="off"
                     )
                     st.markdown("""
                         **Détails de la prévision :**
-                        * Le modèle intègre vos fermetures (Lundi/Mardi en Juin pour tous ; Lundi/Mardi en Juillet uniquement pour le Restaurant).
-                        * Les prévisions météo et les volumes historiques sont arrêtés précisément au **Dimanche soir**.
-                    """)
+                        * Le modèle est configuré sur l'historique réel du **flux de Caisse**.
+                        * Il prend en compte de manière automatisée l'impact des **vacances et jours fériés**.
+                        * Intègre les fermetures planifiées.
+                        """)
                     
                     with st.expander(" Voir la météo prévisionnelle utilisée"):
                         df_meteo_brute_display = df_futur_meteo.copy()
@@ -458,27 +570,27 @@ with tab2:
                     trad = {'Monday': 'Lun', 'Tuesday': 'Mar', 'Wednesday': 'Mer', 'Thursday': 'Jeu', 'Friday': 'Ven', 'Saturday': 'Sam', 'Sunday': 'Dim'}
                     for eng, fr in trad.items():
                         forecast['Jour'] = forecast['Jour'].str.replace(eng, fr)
-                        
+                    
                     fig_forecast = px.bar(
                         forecast, x='Jour', y='yhat',
                         title="Répartition estimée du CA jour par jour (Ajustée)",
                         labels={'yhat': 'CA HT Estimé (€)', 'Jour': 'Jour de la semaine'},
                         template='simple_white',
-                        color_discrete_sequence=['gold'] # CORRECTION BUG : '#gold' -> 'gold' ou '#FFD700'
+                        color_discrete_sequence=['gold']
                     )
                     fig_forecast.update_traces(texttemplate='<b>%{value:.0f} €</b>', textposition='outside')
                     st.plotly_chart(clean_chart_layout(fig_forecast), use_container_width=True)
             else:
                 st.info("Aucun jour prédictible restant pour la semaine en cours.")
     else:
-        st.info("Historique de données insuffisant sur ce point de vente spécifique pour générer une prédiction fiable.")
+        st.info("Historique de données de caisse insuffisant sur ce point de vente spécifique pour générer une prédiction fiable.")
 
 # ==========================================
 #  TAB NEW : ONGLET DONNÉES (FILTRES PRÉCIS)
 # ==========================================
 with tab_donnees:
     st.header(" Exploration et Recherche de Données", divider='blue')
-    st.write("Filtrez les ventes par dates et points de vente")
+    st.write("Filtrez les ventes précisément par dates et points de vente pour un contrôle ciblé.")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
@@ -549,14 +661,6 @@ with tab3:
     c2.metric('Total Factures HT', f'{total_facture:,.0f} €'.replace(',', ' '))
     c3.metric('SOLDE GLOBAL EN COURS', f'{solde_total:,.0f} €'.replace(',', ' '), delta_color="inverse")
 
-    st.subheader('Synthèse Compte Fournisseur (Poids des écarts de soldes)', divider='blue')
-    if not compte_fournisseur.empty and compte_fournisseur['Taille_Treemap'].sum() > 0.5:
-        fig_fournisseur = px.treemap(compte_fournisseur, path=[px.Constant("Tous les fournisseurs"), 'Fournisseur'], values='Taille_Treemap', color='Solde HT', custom_data=['Fournisseur', 'Solde HT', 'Montant BL HT', 'Montant Facture HT'], color_continuous_scale='RdBu', color_continuous_midpoint=0)
-        fig_fournisseur.update_traces(texttemplate="<b>%{label}</b><br>%{customdata[1]:,.0f} €", textposition="middle center", hovertemplate="<b>%{customdata[0]}</b><br>Solde : %{customdata[1]:,.0f} €")
-        st.plotly_chart(clean_chart_layout(fig_fournisseur), use_container_width=True)
-    else:
-        st.info("Aucun écart de solde à afficher pour le moment.")
-
     st.header('Détail individuel par Compte', divider='blue')
     cols = st.columns(2)
     with cols[0]: sel_fournisseur = st.selectbox('**Sélectionner un fournisseur :**', options=sorted(compte_fournisseur['Fournisseur'].unique()))
@@ -574,6 +678,7 @@ with tab4:
     recette = df_ventes.query('année == @année_n')['Espece'].sum()
     df_cash["mois"] = df_cash['Date'].dt.month
     depot = df_cash.query('mois > 4')['Montant'].sum()
+    
     df_cash_visuel = df_cash.query('mois > 4').copy()
     df_cash_visuel['Date dépôt'] = df_cash_visuel['Date'].dt.date
     df_cash_visuel = df_cash_visuel[['Date dépôt', 'Montant','Numero_ticket']]
@@ -583,10 +688,10 @@ with tab4:
     with cols[0]: st.metric('CA global TTC — Espèces', value=f'{recette:,.0f} €'.replace(',', ' '))
     with cols[1]: st.metric('Total Espèces Déposées', value=f'{depot:,.0f} €'.replace(',', ' '))
     with cols[2]: st.metric('Solde Théorique Coffre', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
-
-    st.subheader('Historique des dépôt de cash', divider = 'blue')
-    with st.expander('**Historique des Dépôts**'):
-        st.dataframe(df_cash_visuel, hide_index=True, use_container_width=True)
+   
+    st.subheader('**Historique des dépôts**', divider='blue')
+    with st.expander("Afficher l'hhistorique des dépôts"):
+        st.dataframe(df_cash.sort_values(by='Date', ascending=True), hide_index=True)
 
     st.subheader('Audit de Cohérence (Enveloppes vs Caisse)', divider='blue')
     audit_cash_caisse = df_caisse[['Date', 'Site', 'Espece']].copy()
@@ -600,10 +705,11 @@ with tab4:
     audit_cash = pd.merge(audit_cash_caisse_agg, df_enveloppe_agg, on=['Date', 'Site'], how='left')
     audit_cash['Montant'] = audit_cash['Montant'].fillna(0)
     audit_cash['Ecarts'] = (audit_cash['Espece'] - audit_cash['Montant']).round(2)
-    df_historique_cash = audit_cash.sort_values(by='Date', ascending=False).head(10)
+    audit_cash = audit_cash.sort_values(by='Date', ascending=False )
+    
 
     with st.expander(" Afficher l'historique d'audit des 10 derniers jours", expanded=False):
-        st.dataframe(df_historique_cash, hide_index=True, use_container_width=True)
+        st.dataframe(audit_cash, hide_index=True, use_container_width=True)
 
 # ==========================================
 #  TAB 5 : MASSE SALARIALE
@@ -647,6 +753,17 @@ with tab5:
 #  TAB 9 : ARCHIVES
 # ==========================================
 with tab9:
+
     with st.expander(' Consulter l\'historique complet de la Master Data (Ventes)'):
         df_ventes['Date'] = df_ventes['Date'].dt.date
         st.dataframe(df_ventes, hide_index=True, use_container_width=True)
+
+    with st.expander(' Consulter l\'historique complet du fichier caisse'):
+        df_caisse['Date'] = df_caisse['Date'].dt.date
+        st.dataframe(df_caisse, hide_index=True, use_container_width=True)
+
+    with st.expander(' Consulter l\'historique complet du fichier Event'):
+        df_events['Date'] = df_events['Date'].dt.date
+        st.dataframe(df_events, hide_index=True, use_container_width=True)
+
+    
