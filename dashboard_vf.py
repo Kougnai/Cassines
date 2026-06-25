@@ -205,16 +205,16 @@ with tab1:
 
     # Ligne 1 : Objectifs budgétaires et MS/C (4 colonnes)
     cola, colb, colc, cold = st.columns(4)
-    cola.metric("Écarts BP 2026", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
-    colb.metric("Écart BP M-Courant", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
-    colc.metric("Rythme Hebdo M-Courant", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
-    cold.metric('Ratio MS/C Global', value=f'{ms_c_année_n:.1%}', delta=f'{delta_msc_c:.1%}', delta_color='inverse')
-
+    cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
+    colb.metric("Écarts BP 2026", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
+    colc.metric("Écart BP M-Courant", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
+    cold.metric("Rythme Hebdo M-Courant", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
+    
     # Ligne 2 : Volumes et CA YTD (3 colonnes)
     a, b, c = st.columns(3)
-    a.metric('Nombre de couverts (YTD)', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 ISO")
-    b.metric('Ticket moyen (YTD)', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description="VS N-1 ISO")
-    c.metric("Chiffre d'affaire HT (YTD)", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
+    a.metric('Nombre de couverts', value=fmt_qty(nb_cvts_année_n), delta=fmt_qty(nb_cvts_année_n - nb_cvts_n_1_ytd), delta_description="VS N-1 ISO")
+    b.metric('Ticket moyen', value=fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description="VS N-1 ISO")
+    c.metric('Ratio MS/C Global', value=f'{ms_c_année_n:.1%}', delta=f'{delta_msc_c:.1%}', delta_color='inverse')
 
     st.write("")
     with st.container(border=True):
@@ -441,15 +441,15 @@ with tab2:
     st.subheader(f'Performances : {site_selectionne}', divider='blue')
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric('Écarts BP 2026', fmt_euro(ecart_bp_2026), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_site)})")
-    col2.metric("Écart BP Site M-Courant", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
-    col3.metric("Rythme Hebdo Site", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
-    col4.metric('Ratio MS/C Site', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
+    col1.metric("Chiffre d'affaire HT", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='vs N-1')
+    col2.metric('Écarts BP 2026', fmt_euro(ecart_bp_2026), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_site)})")
+    col3.metric("Écart BP Site M-Courant", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
+    col4.metric("Rythme Hebdo Site", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
 
     a, b, c = st.columns(3)
-    a.metric('Couverts (YTD)', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='vs N-1 ISO')
-    b.metric('Ticket Moyen (YTD)', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='vs N-1 ISO')  
-    c.metric("CA HT Site (YTD)", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='vs N-1 ISO')
+    a.metric('Nombre de Couverts', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='vs N-1 ISO')
+    b.metric('Ticket Moyen', fmt_euro_2d(ticket_moyen_n), delta=fmt_euro_2d(delta_ticket_moyen), delta_description='vs N-1 ISO')  
+    c.metric('Ratio MS/C Site', f'{ms_c:.1%}', delta=f'{delta_msc:.1%}', delta_color='normal')
 
     st.write("")
     with st.container(border=True):
