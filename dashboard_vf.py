@@ -704,7 +704,7 @@ with tab4:
 
     audit_cash = pd.merge(audit_cash_caisse_agg, df_enveloppe_agg, on=['Date', 'Site'], how='left')
     audit_cash['Montant'] = audit_cash['Montant'].fillna(0)
-    audit_cash['Ecarts'] = (audit_cash['Espece'] - audit_cash['Montant']).round(2)
+    audit_cash['Ecarts'] = (audit_cash['Montant'] - audit_cash['Espece']).round(2)
     audit_cash = audit_cash.sort_values(by='Date', ascending=False )
     
 
@@ -745,7 +745,7 @@ with tab5:
     cols[1].metric("Masse salariale chargée", value=f'{msc_rh:,.0f} €'.replace(",", " "), delta=f'{ecart_rh_val:,.0f} €'.replace(",", " "), delta_color='inverse')
     cols[2].metric("Ratio Réel MS/C", value=f'{ratio_rh:.2%}', delta=f'{delta_rh:.2%}', delta_arrow='off')
 
-    fig_rh = px.bar(var_rh, x='Semaine ISO', y='Ratio (%)', color='Site', template='plotly_white')
+    fig_rh = px.bar(var_rh, x='Semaine ISO', y='Ratio (%)', color='Site', template='plotly_white', hover_data=["Chiffre d'affaire HT", "Masse salariale chargée"])
     fig_rh.add_scatter(x=var_rh['Semaine ISO'], y=var_rh['Valeur cible'], name='Objectif Limite 35%')
     st.plotly_chart(clean_chart_layout(fig_rh), use_container_width=True)
 
@@ -765,5 +765,3 @@ with tab9:
     with st.expander(' Consulter l\'historique complet du fichier Event'):
         df_events['Date'] = df_events['Date'].dt.date
         st.dataframe(df_events, hide_index=True, use_container_width=True)
-
-    
