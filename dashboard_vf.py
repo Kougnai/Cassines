@@ -206,9 +206,9 @@ with tab1:
     # Ligne 1 : Objectifs budgétaires et MS/C (4 colonnes)
     cola, colb, colc, cold = st.columns(4)
     cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
-    colb.metric("Écarts BP 2026", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
-    colc.metric("Écart BP M-Courant", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
-    cold.metric("Rythme Hebdo M-Courant", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
+    colb.metric("Écarts BP 2026 cumulés", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
+    colc.metric("Écart BP Mensuel", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
+    cold.metric("Écarts BP hebd", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
     
     # Ligne 2 : Volumes et CA YTD (3 colonnes)
     a, b, c = st.columns(3)
@@ -442,9 +442,9 @@ with tab2:
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Chiffre d'affaire HT", fmt_euro(ca_site_n), delta=fmt_euro(delta_ca_site), delta_description='vs N-1')
-    col2.metric('Écarts BP 2026', fmt_euro(ecart_bp_2026), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_site)})")
-    col3.metric("Écart BP Site M-Courant", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
-    col4.metric("Rythme Hebdo Site", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
+    col2.metric('Écarts BP 2026 cumulé', fmt_euro(ecart_bp_2026), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_site)})")
+    col3.metric("Écart BP Mensuel", value=fmt_euro(ca_site_du_mois), delta=fmt_euro(ecart_bp_site_mensuel), delta_description=f"Cible : {fmt_euro(bp_site_mensuel)}")
+    col4.metric("Ecarts BP hebdo", value=fmt_euro(ca_site_du_mois / semaines_ecoulees_site), delta=fmt_euro(ecart_bp_site_hebdo), delta_description=f"Cible : {fmt_euro(bp_site_hebdo)}")
 
     a, b, c = st.columns(3)
     a.metric('Nombre de Couverts', fmt_qty(nb_cvt_n), delta=fmt_qty(delta_cvt), delta_description='vs N-1 ISO')
