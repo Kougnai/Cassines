@@ -208,7 +208,7 @@ with tab1:
     cola.metric("Chiffre d'affaire HT", value=fmt_euro(ca_année_n), delta=fmt_euro(delta_ca), delta_description="VS N-1 ISO")
     colb.metric("Écarts BP 2026 cumulés", value=fmt_euro(ecart_bp_2026_global), delta_description=f"**BP 26** : ({fmt_euro(bp_cumule_global)})")
     colc.metric("Écart BP Mensuel", value=fmt_euro(ca_du_mois_en_cours), delta=fmt_euro(ecart_bp), delta_description=f"Cible : {fmt_euro(bp_global_mensuel)}")
-    cold.metric("Écarts BP hebd", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
+    cold.metric("Écarts BP hebdo", value=fmt_euro(ca_du_mois_en_cours / semaines_ecoulees_mois), delta=fmt_euro(ecart_bp_hebdo), delta_description=f"Cible : {fmt_euro(bp_hebdo)}")
     
     # Ligne 2 : Volumes et CA YTD (3 colonnes)
     a, b, c = st.columns(3)
