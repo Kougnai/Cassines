@@ -193,7 +193,7 @@ with tab1:
         bp_global_mensuel = sum([v["Total"] for v in DATA_BP26.values()]) / len(DATA_BP26)
         
     ecart_bp = ca_du_mois_en_cours - bp_global_mensuel
-    bp_hebdo = bp_global_mensuel / 4
+    bp_hebdo = bp_global_mensuel  / 31 * 7
     semaines_ecoulees_mois = max(1, df_année_n.query('mois == @current_mois')['iso_semaine'].nunique())
     ecart_bp_hebdo = (ca_du_mois_en_cours / semaines_ecoulees_mois) - bp_hebdo
 
@@ -233,9 +233,9 @@ with tab1:
 
     st.subheader('Évolution du Chiffre d\'affaire YoY', divider='blue')
     cols = st.columns(3)
-    with cols[0]: mode = st.segmented_control('**Mode de vue**', options=['mois', 'iso_semaine'], default='mois')
+    with cols[0]: mode = st.segmented_control('**Mode de vue**', options=['mois', 'iso_semaine'], default='iso_semaine')
     with cols[1]: year = st.pills('**Choisir l\'année**', options=df_ventes['année'].unique(), default=[2025, 2026], selection_mode='multi')
-    with cols[2]: site = st.pills('**Point de vente**', options=df_ventes['Site'].unique(), default='Guinguette', selection_mode='multi')
+    with cols[2]: site = st.pills('**Point de vente**', options=df_ventes['Site'].unique(), default=['Guinguette', 'Restaurant', 'LPB'], selection_mode='multi')
 
     ca_month = df_ventes.query('année == @year and Site == @site').groupby(['année', mode])['Ca_ht'].sum().reset_index().sort_values(['année', mode], ascending=True)
 
@@ -307,10 +307,10 @@ with tab1:
         bp_m_guin  = DATA_BP26.get(current_mois, {}).get("Guinguette", 0)
         bp_m_lpb   = DATA_BP26.get(current_mois, {}).get("Le petit baigneur", 0)
         
-        bp_h_total = bp_m_total / 4
-        bp_h_rest  = bp_m_rest / 4
-        bp_h_guin  = bp_m_guin / 4
-        bp_h_lpb   = bp_m_lpb / 4
+        bp_h_total = bp_m_total / 31 * 7
+        bp_h_rest  = bp_m_rest / 31 * 7
+        bp_h_guin  = bp_m_guin / 31 * 7
+        bp_h_lpb   = bp_m_lpb / 31 * 7
         
         # --- 2. OBJECTIFS MENSUELS ET RESTE À FAIRE ---
         ca_m_total = df_année_n.query('mois == @current_mois')['Ca_ht'].sum()
@@ -357,24 +357,24 @@ with tab1:
 La Semaine N°{dernier_semaine_n} 
 
 Chiffre d’affaire semaine n° {dernier_semaine_n} :
-\t- TOTAL : {ca_sem_total/1000:.1f}K €  |  {signe(ca_sem_total - bp_h_total)}{(ca_sem_total - bp_h_total)/1000:.1f}k€ vs BP hebdo ({bp_h_total/1000:.1f}k €) 
-\t- Restaurant : {ca_sem_rest/1000:.1f}k € | {signe(ca_sem_rest - bp_h_rest)}{(ca_sem_rest - bp_h_rest)/1000:.1f}k€ vs BP hebdo ({bp_h_rest/1000:.1f}k €) 
-\t- Guinguette : {ca_sem_guin/1000:.1f}K € | {signe(ca_sem_guin - bp_h_guin)}{(ca_sem_guin - bp_h_guin)/1000:.1f}k € vs BP hebdo ({bp_h_guin/1000:.1f}k €)
-\t- LPB : {ca_sem_lpb/1000:.1f}k € | {signe(ca_sem_lpb - bp_h_lpb)}{(ca_sem_lpb - bp_h_lpb)/1000:.1f}K € vs BP hebdo ({bp_h_lpb/1000:.1f}k €)
+\t- TOTAL : {ca_sem_total/1000:.1f}K € CA |  {signe(ca_sem_total - bp_h_total)}{(ca_sem_total - bp_h_total)/1000:.1f}k€ vs BP hebdo ({bp_h_total/1000:.1f}k €) 
+\t- Restaurant : {ca_sem_rest/1000:.1f}k € CA | {signe(ca_sem_rest - bp_h_rest)}{(ca_sem_rest - bp_h_rest)/1000:.1f}k€ vs BP hebdo ({bp_h_rest/1000:.1f}k €) 
+\t- Guinguette : {ca_sem_guin/1000:.1f}K € CA | {signe(ca_sem_guin - bp_h_guin)}{(ca_sem_guin - bp_h_guin)/1000:.1f}k € vs BP hebdo ({bp_h_guin/1000:.1f}k €)
+\t- LPB : {ca_sem_lpb/1000:.1f}k € CA | {signe(ca_sem_lpb - bp_h_lpb)}{(ca_sem_lpb - bp_h_lpb)/1000:.1f}K € vs BP hebdo ({bp_h_lpb/1000:.1f}k €)
 
 Objectif mensuel {nom_mois} : 
-\t- Total : {bp_m_total/1000:.0f} k€ | {raf_total/1000:.0f}k € à Faire
-\t- Restaurant : {bp_m_rest/1000:.0f}k € | {raf_rest/1000:.0f}k € à Faire
-\t- Guinguette : {bp_m_guin/1000:.0f}k € | {raf_guin/1000:.0f}k € à Faire 
-\t- LPB : {bp_m_lpb/1000:.0f}k € | {raf_lpb/1000:.0f}k € à Faire 
+\t- Total : {bp_m_total/1000:.0f} k€ Objectif BP | {raf_total/1000:.0f}k € à Faire
+\t- Restaurant : {bp_m_rest/1000:.0f}k € Objectif BP | {raf_rest/1000:.0f}k € à Faire
+\t- Guinguette : {bp_m_guin/1000:.0f}k € Objectif BP | {raf_guin/1000:.0f}k € à Faire 
+\t- LPB : {bp_m_lpb/1000:.0f}k € Objectif BP | {raf_lpb/1000:.0f}k € à Faire 
 
 Chiffre d’affaire YTD ( Année N vs Année N-1 ) 
-\t- TOTAL : {ca_année_n/1000:.0f}k € | {signe(delta_ca)}{delta_ca/1000:.0f}k € vs n-1 
-\t- Restaurant : {ca_ytd_rest_n/1000:.0f}k€ | {signe(ca_ytd_rest_n - ca_ytd_rest_n1)}{(ca_ytd_rest_n - ca_ytd_rest_n1)/1000:.0f}k € vs n-1 
-\t- Guinguette : {ca_ytd_guin_n/1000:.0f}k € | {signe(ca_ytd_guin_n - ca_ytd_guin_n1)}{(ca_ytd_guin_n - ca_ytd_guin_n1)/1000:.0f}k € vs n-1
-\t- LPB : {ca_ytd_lpb_n/1000:.0f}K € | {signe(ca_ytd_lpb_n - ca_ytd_lpb_n1)}{(ca_ytd_lpb_n - ca_ytd_lpb_n1)/1000:.0f}K € vs n-1
+\t- TOTAL : {ca_année_n/1000:.0f}k € CA | {signe(delta_ca)}{delta_ca/1000:.0f}k € vs n-1 
+\t- Restaurant : {ca_ytd_rest_n/1000:.0f}k € CA | {signe(ca_ytd_rest_n - ca_ytd_rest_n1)}{(ca_ytd_rest_n - ca_ytd_rest_n1)/1000:.0f}k € vs n-1 
+\t- Guinguette : {ca_ytd_guin_n/1000:.0f}k € CA | {signe(ca_ytd_guin_n - ca_ytd_guin_n1)}{(ca_ytd_guin_n - ca_ytd_guin_n1)/1000:.0f}k € vs n-1
+\t- LPB : {ca_ytd_lpb_n/1000:.0f}K € CA | {signe(ca_ytd_lpb_n - ca_ytd_lpb_n1)}{(ca_ytd_lpb_n - ca_ytd_lpb_n1)/1000:.0f}K € vs n-1
 
-Chiffre d’affaire {année_n} vs BP (Cumulé Fin Semaine N°{dernier_semaine_n}) :
+Chiffre d’affaire {année_n} vs BP (Cumulé Fin du Mois de Juillet) :
 \t- TOTAL : {ca_année_n/1000:.0f}k € | {signe(ecart_bp_2026_global)}{ecart_bp_2026_global/1000:.0f}k € vs BP Global ({bp_cumule_global/1000:.0f}k €)
 \t- Restaurant : {ca_ytd_rest_n/1000:.0f}k € | {signe(ecart_bp_rest)}{ecart_bp_rest/1000:.0f}k € vs BP ({bp_cum_rest/1000:.0f}k €)
 \t- Guinguette : {ca_ytd_guin_n/1000:.0f}k € | {signe(ecart_bp_guin)}{ecart_bp_guin/1000:.0f}k € vs BP ({bp_cum_guin/1000:.0f}k €)
@@ -384,7 +384,7 @@ Masse salariale {année_n} en cours :
 \t- TOTAL : {ms_c_total:.0%}
 \t- Restaurant : {ms_c_rest:.0%}
 \t- Guinguette : {ms_c_guin:.0%}
-\t- LPB : {ms_c_lpb:.0%}"""
+"""
 
         # Zone d'affichage copier-coller
         st.text_area("📋 Copier le rapport économique :", value=report_text, height=500)
@@ -430,7 +430,7 @@ with tab2:
     bp_site_mensuel = DATA_BP26.get(current_mois, {}).get(site_selectionne, 0)
     
     ecart_bp_site_mensuel = ca_site_du_mois - bp_site_mensuel
-    bp_site_hebdo = bp_site_mensuel / 4
+    bp_site_hebdo = bp_site_mensuel / 31 * 7
     semaines_ecoulees_site = max(1, df_site_n.query('mois == @current_mois')['iso_semaine'].nunique())
     ecart_bp_site_hebdo = (ca_site_du_mois / semaines_ecoulees_site) - bp_site_hebdo
 
@@ -494,96 +494,6 @@ with tab2:
     fig_pv.update_layout(hovermode='x unified')
     st.plotly_chart(clean_chart_layout(fig_pv), use_container_width=True)
 
-    # --- MODIFICATION DEMANDÉE : MODÈLE PREDICTIF PROPHET SUR DF_CAISSE & VACANCES FRANCAISES ---
-    st.subheader(f" Prévision : Estimation du CA restant de la semaine ({site_selectionne})", divider='blue')
-    
-    df_caisse_site = df_caisse.query("Site == @nom_filtre_df").copy()
-    
-    # Intégration de la météo sur la caisse
-    df_caisse_site = add_weather_data(df_caisse_site)
-    
-    df_prophet = df_caisse_site[['Date', 'Ca_ht', 'Temp_Max', 'Pluie_mm']].copy().dropna(subset=['Date', 'Ca_ht'])
-    df_prophet.columns = ['ds', 'y', 'Temp_Max', 'Pluie_mm']
-    df_prophet = df_prophet.sort_values('ds').reset_index(drop=True)
-    
-    if len(df_prophet) > 14:
-        with st.spinner("Analyse des tendances (Caisse) et récupération des prévisions météo pour Talloires-Montmin (74290)..."):
-            model = Prophet(yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=False)
-            
-            # AJOUT DES VACANCES / JOURS FÉRIÉS FRANÇAIS
-            model.add_country_holidays(country_name='FR')
-            
-            model.add_regressor('Temp_Max')
-            model.add_regressor('Pluie_mm')
-            model.fit(df_prophet)
-            
-            df_futur_meteo = get_weather_forecast()
-            
-            aujourdhui = datetime.date.today()
-            jours_restants_dimanche = (6 - aujourdhui.weekday()) % 7
-            prochain_dimanche = pd.to_datetime(aujourdhui + datetime.timedelta(days=jours_restants_dimanche))
-            df_futur_meteo = df_futur_meteo[df_futur_meteo['ds'] <= prochain_dimanche].copy()
-            
-            if not df_futur_meteo.empty:
-                forecast = model.predict(df_futur_meteo)
-                forecast['yhat'] = forecast['yhat'].clip(lower=0)
-                
-                forecast['num_mois'] = forecast['ds'].dt.month
-                forecast['jour_semaine'] = forecast['ds'].dt.dayofweek
-                
-                def appliquer_calendrier_saisonnier(row):
-                    m = row['num_mois']
-                    j = row['jour_semaine']
-                    if m == 6 and j in [0, 1]:
-                        return 0.0
-                    if m == 7 and j in [0, 1] and site_selectionne == "Restaurant":
-                        return 0.0
-                    return row['yhat']
-                
-                forecast['yhat'] = forecast.apply(appliquer_calendrier_saisonnier, axis=1)
-                ca_total_estime = forecast['yhat'].sum()
-                
-                p1, p2 = st.columns([1, 2])
-                with p1:
-                    st.write("")
-                    st.metric(
-                        label=" Estimation CA Restant (Jusqu'à Dimanche)",
-                        value=fmt_euro(ca_total_estime),
-                        delta="Basé sur Flux Caisse + Vacances FR",
-                        delta_color="off"
-                    )
-                    st.markdown("""
-                        **Détails de la prévision :**
-                        * Le modèle est configuré sur l'historique réel du **flux de Caisse**.
-                        * Il prend en compte de manière automatisée l'impact des **vacances et jours fériés**.
-                        * Intègre les fermetures planifiées.
-                        """)
-                    
-                    with st.expander(" Voir la météo prévisionnelle utilisée"):
-                        df_meteo_brute_display = df_futur_meteo.copy()
-                        df_meteo_brute_display['ds'] = df_meteo_brute_display['ds'].dt.strftime('%d/%m')
-                        df_meteo_brute_display.columns = ["Date", "Temp Max (°C)", "Pluie (mm)"]
-                        st.dataframe(df_meteo_brute_display, hide_index=True)
-
-                with p2:
-                    forecast['Jour'] = forecast['ds'].dt.strftime('%A %d/%m')
-                    trad = {'Monday': 'Lun', 'Tuesday': 'Mar', 'Wednesday': 'Mer', 'Thursday': 'Jeu', 'Friday': 'Ven', 'Saturday': 'Sam', 'Sunday': 'Dim'}
-                    for eng, fr in trad.items():
-                        forecast['Jour'] = forecast['Jour'].str.replace(eng, fr)
-                    
-                    fig_forecast = px.bar(
-                        forecast, x='Jour', y='yhat',
-                        title="Répartition estimée du CA jour par jour (Ajustée)",
-                        labels={'yhat': 'CA HT Estimé (€)', 'Jour': 'Jour de la semaine'},
-                        template='simple_white',
-                        color_discrete_sequence=['gold']
-                    )
-                    fig_forecast.update_traces(texttemplate='<b>%{value:.0f} €</b>', textposition='outside')
-                    st.plotly_chart(clean_chart_layout(fig_forecast), use_container_width=True)
-            else:
-                st.info("Aucun jour prédictible restant pour la semaine en cours.")
-    else:
-        st.info("Historique de données de caisse insuffisant sur ce point de vente spécifique pour générer une prédiction fiable.")
 
 # ==========================================
 #  TAB NEW : ONGLET DONNÉES (FILTRES PRÉCIS)
@@ -690,7 +600,7 @@ with tab4:
     with cols[2]: st.metric('Solde Théorique Coffre', value=f'{(recette-depot):,.0f} €'.replace(',', ' '))
    
     st.subheader('**Historique des dépôts**', divider='blue')
-    with st.expander("Afficher l'hhistorique des dépôts"):
+    with st.expander("Afficher l'historique des dépôts"):
         st.dataframe(df_cash.sort_values(by='Date', ascending=True), hide_index=True)
 
     st.subheader('Audit de Cohérence (Enveloppes vs Caisse)', divider='blue')
@@ -708,7 +618,7 @@ with tab4:
     audit_cash = audit_cash.sort_values(by='Date', ascending=False )
     
 
-    with st.expander(" Afficher l'historique d'audit des 10 derniers jours", expanded=False):
+    with st.expander(" Afficher l'historique d'audit", expanded=False):
         st.dataframe(audit_cash, hide_index=True, use_container_width=True)
 
 # ==========================================
@@ -717,22 +627,38 @@ with tab4:
 with tab5:
     st.header('Suivi Analyse de la Masse Salariale', divider='blue')
     df_rh_analyse = df_rh.copy()
-    df_ventes_rh = df_ventes.query("année == @année_n").copy()
+    
+    # On filtre les ventes sur l'année N et on exclut déjà "LPB" s'il est présent côté ventes
+    df_ventes_rh = df_ventes.query("année == @année_n and Site != 'LPB'").copy()
 
     date_rh = df_rh_analyse['Date'].dt
-    df_rh_analyse = df_rh_analyse.assign(année=date_rh.year, mois=date_rh.month, iso_semaine=date_rh.isocalendar().week)
-    df_rh_analyse_année_n = df_rh_analyse.query('année == @année_n')
+    # On extrait le mois plutôt que la semaine ISO
+    df_rh_analyse = df_rh_analyse.assign(année=date_rh.year, mois=date_rh.month)
     
-    rh_synthese = df_rh_analyse_année_n.groupby(['iso_semaine','Site'])['Montant'].sum().reset_index()
-    rh_ventes_synthese = df_ventes_rh.groupby(['iso_semaine', 'Site'])['Ca_ht'].sum().reset_index()
-    globale_rh = pd.merge(rh_ventes_synthese, rh_synthese, how='outer', on=['iso_semaine','Site'])
-    globale_rh['Ratio (%)'] = ((globale_rh['Montant'] / globale_rh['Ca_ht'] ) * 100 ).round(2)
+    # Filtre sur l'année N et exclusion du site "LPB" pour la partie RH
+    df_rh_analyse_année_n = df_rh_analyse.query("année == @année_n and Site != 'LPB'")
+    
+    # Regroupement par 'mois' au lieu de 'iso_semaine'
+    rh_synthese = df_rh_analyse_année_n.groupby(['mois', 'Site'])['Montant'].sum().reset_index()
+    rh_ventes_synthese = df_ventes_rh.groupby(['mois', 'Site'])['Ca_ht'].sum().reset_index()
+    
+    # Fusion sur le mois et le site
+    globale_rh = pd.merge(rh_ventes_synthese, rh_synthese, how='outer', on=['mois', 'Site'])
+    globale_rh['Ratio (%)'] = ((globale_rh['Montant'] / globale_rh['Ca_ht']) * 100).round(2)
     globale_rh['Valeur cible'] = 35
-    globale_rh.columns = ['Semaine ISO', 'Site', "Chiffre d'affaire HT", "Masse salariale chargée", 'Ratio (%)', "Valeur cible"]
+    globale_rh.columns = ['Mois', 'Site', "Chiffre d'affaire HT", "Masse salariale chargée", 'Ratio (%)', "Valeur cible"]
 
     st.subheader('Sélection du périmètre d\'analyse', divider='blue')
+    # Les options n'incluront plus "LPB" grâce aux filtres appliqués plus haut
     site_rh = st.pills('', options=globale_rh['Site'].unique(), default='Restaurant')
-    var_rh = globale_rh.query('Site == @site_rh').groupby(['Semaine ISO', 'Site']).agg({"Chiffre d'affaire HT": 'sum', "Masse salariale chargée": 'sum', "Ratio (%)": 'mean', "Valeur cible": 'mean'}).round().reset_index()
+    
+    # Ajustement du regroupement final par Mois
+    var_rh = globale_rh.query('Site == @site_rh and Mois > 4').groupby(['Mois', 'Site']).agg({
+        "Chiffre d'affaire HT": 'sum', 
+        "Masse salariale chargée": 'sum', 
+        "Ratio (%)": 'mean', 
+        "Valeur cible": 'mean'
+    }).round().reset_index()
 
     ca_rh = var_rh["Chiffre d'affaire HT"].sum()
     msc_rh = var_rh["Masse salariale chargée"].sum()
@@ -745,8 +671,9 @@ with tab5:
     cols[1].metric("Masse salariale chargée", value=f'{msc_rh:,.0f} €'.replace(",", " "), delta=f'{ecart_rh_val:,.0f} €'.replace(",", " "), delta_color='inverse')
     cols[2].metric("Ratio Réel MS/C", value=f'{ratio_rh:.2%}', delta=f'{delta_rh:.2%}', delta_arrow='off')
 
-    fig_rh = px.bar(var_rh, x='Semaine ISO', y='Ratio (%)', color='Site', template='plotly_white', hover_data=["Chiffre d'affaire HT", "Masse salariale chargée"])
-    fig_rh.add_scatter(x=var_rh['Semaine ISO'], y=var_rh['Valeur cible'], name='Objectif Limite 35%')
+    # Mise à jour du graphique avec l'axe X sur le 'Mois'
+    fig_rh = px.bar(var_rh, x='Mois', y='Ratio (%)', color='Site', template='plotly_white', hover_data=["Chiffre d'affaire HT", "Masse salariale chargée"])
+    fig_rh.add_scatter(x=var_rh['Mois'], y=var_rh['Valeur cible'], name='Objectif Limite 35%')
     st.plotly_chart(clean_chart_layout(fig_rh), use_container_width=True)
 
 # ==========================================
